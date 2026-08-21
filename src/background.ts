@@ -11,6 +11,7 @@ import type {
   ProgressMessage,
   SaveArticleRequest,
   SaveArticleResponse,
+  ToastMessage,
   WidgetInfo,
 } from './messages';
 
@@ -317,13 +318,24 @@ function flashBadge(ok: boolean): void {
   setTimeout(() => chrome.action.setBadgeText({ text: '' }), 1500);
 }
 
+function sendToast(tabId: number, ok: boolean): void {
+  const msg: ToastMessage = { type: 'collector-toast', ok };
+  chrome.tabs.sendMessage(tabId, msg).catch(() => {});
+}
+
 chrome.commands.onCommand.addListener((command) => {
   if (command !== 'save-article') return;
   chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
     if (typeof tab?.id !== 'number') return;
     handleSave({ type: 'save', tabId: tab.id })
-      .then((resp) => flashBadge(resp.ok))
-      .catch(() => flashBadge(false));
+      .then((resp) => {
+        flashBadge(resp.ok);
+        sendToast(tab.id!, resp.ok);
+      })
+      .catch(() => {
+        flashBadge(false);
+        sendToast(tab.id!, false);
+      });
   });
 });
 

@@ -45,3 +45,8 @@ export interface ProgressMessage {
   type: 'collector-progress';
   text: string;
 }
+
+export interface ToastMessage {
+  type: 'collector-toast';
+  ok: boolean;
+}

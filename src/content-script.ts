@@ -1,6 +1,6 @@
 import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
-import type { DetectResponse, ExtractResponse, WidgetInfo, WidgetRect } from './messages';
+import type { DetectResponse, ExtractResponse, ToastMessage, WidgetInfo, WidgetRect } from './messages';
 
 declare global {
   interface Window {
@@ -223,3 +223,59 @@ function extract(screenshots: Record<string, string> = {}): ExtractResponse {
 
 window.__theCollectorDetect = detectWidgets;
 window.__theCollectorExtract = extract;
+
+// ---- Save toast -------------------------------------------------------------
+
+const TOAST_DURATION_MS = 2000;
+
+let toastHost: HTMLDivElement | null = null;
+let toastLabel: HTMLElement | null = null;
+let toastHideTimer: ReturnType<typeof setTimeout> | undefined;
+
+function showToast(ok: boolean): void {
+  if (!document.body) return;
+
+  if (!toastHost || !toastLabel) {
+    const host = document.createElement('div');
+    host.style.cssText =
+      'position:fixed;top:24px;right:24px;z-index:2147483647;pointer-events:none;';
+
+    const shadow = host.attachShadow({ mode: 'closed' });
+    const style = document.createElement('style');
+    style.textContent = `
+      :host { all: initial; }
+      .pill {
+        font: 13px/1.4 system-ui, sans-serif;
+        color: #fff;
+        padding: 8px 14px;
+        border-radius: 999px;
+        opacity: 0;
+        transform: translateY(-6px);
+        transition: opacity 150ms ease, transform 150ms ease;
+      }
+      .ok { background: #2e7d32; }
+      .err { background: #c62828; }
+      .show { opacity: 1; transform: translateY(0); }
+    `;
+    const pill = document.createElement('div');
+    pill.className = 'pill';
+    shadow.append(style, pill);
+
+    document.body.appendChild(host);
+    toastHost = host;
+    toastLabel = pill;
+  }
+
+  toastLabel.textContent = ok ? 'Saved ✓' : 'Save failed';
+  toastLabel.classList.remove('show', 'ok', 'err');
+  toastLabel.classList.add(ok ? 'ok' : 'err');
+  requestAnimationFrame(() => toastLabel!.classList.add('show'));
+
+  if (toastHideTimer !== undefined) clearTimeout(toastHideTimer);
+  toastHideTimer = setTimeout(() => toastLabel?.classList.remove('show'), TOAST_DURATION_MS);
+}
+
+chrome.runtime.onMessage.addListener((msg: unknown) => {
+  const m = msg as ToastMessage | undefined;
+  if (m && m.type === 'collector-toast') showToast(m.ok);
+});

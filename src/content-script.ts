@@ -9,15 +9,18 @@ declare global {
 }
 
 const PURIFY_CONFIG = {
-  ALLOWED_TAGS: [
-    'p', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'ul', 'ol', 'li', 'a', 'img',
-    'strong', 'em', 'b', 'i', 'code', 'pre', 'figure', 'figcaption', 'br', 'hr',
-    'table', 'thead', 'tbody', 'tr', 'td', 'th',
-  ],
-  ALLOWED_ATTR: ['href', 'src', 'alt', 'title'],
   ALLOW_DATA_ATTR: false,
-  FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form'],
+  FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'link', 'meta', 'base'],
 };
+
+function flattenMath(doc: Document): void {
+  const katexEls = doc.querySelectorAll('.katex, .katex-display');
+  for (const el of katexEls) {
+    const mathml = el.querySelector('.katex-mathml');
+    if (mathml) el.replaceWith(mathml);
+    else el.remove();
+  }
+}
 
 function normalizeImages(doc: Document): void {
   const imgs = doc.querySelectorAll('img');
@@ -56,6 +59,7 @@ function collectImageUrls(html: string): string[] {
 function extract(): ExtractResponse {
   const cloned = document.cloneNode(true) as Document;
   normalizeImages(cloned);
+  flattenMath(cloned);
 
   const article = new Readability(cloned).parse();
   if (!article || !article.content) {

@@ -1,13 +1,49 @@
-import { getArticleByUrl } from '../db/db';
+import { getArticleByUrl, listArticles, deleteArticle } from '../db/db';
+import { buildBundle } from '../export/build-bundle';
 import type { ExtractResponse, SaveArticleResponse } from '../messages';
 
 const saveButton = document.getElementById('save') as HTMLButtonElement | null;
 const statusEl = document.getElementById('status') as HTMLParagraphElement | null;
+const countEl = document.getElementById('count') as HTMLSpanElement | null;
+const exportBtn = document.getElementById('export') as HTMLButtonElement | null;
+const savedEl = document.getElementById('saved') as HTMLUListElement | null;
+const emptyEl = document.getElementById('empty') as HTMLParagraphElement | null;
 
 function setStatus(text: string, kind: 'info' | 'error' | 'success' = 'info'): void {
   if (!statusEl) return;
   statusEl.textContent = text;
   statusEl.dataset.kind = kind;
+}
+
+async function renderSaved(): Promise<void> {
+  if (!savedEl || !countEl || !emptyEl || !exportBtn) return;
+  const articles = await listArticles();
+  countEl.textContent = String(articles.length);
+  exportBtn.disabled = articles.length === 0;
+  emptyEl.hidden = articles.length > 0;
+  savedEl.innerHTML = '';
+  for (const a of articles) {
+    const li = document.createElement('li');
+
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = a.title;
+    name.title = a.url;
+
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.title = 'Delete';
+    del.textContent = '×';
+    del.addEventListener('click', async () => {
+      if (confirm(`Delete "${a.title}"? This also removes its images.`)) {
+        await deleteArticle(a.id);
+        await renderSaved();
+      }
+    });
+
+    li.append(name, del);
+    savedEl.appendChild(li);
+  }
 }
 
 async function getActiveTab(): Promise<chrome.tabs.Tab | null> {
@@ -27,7 +63,7 @@ async function extractFromTab(tabId: number): Promise<ExtractResponse> {
   return results[0].result as ExtractResponse;
 }
 
-async function saveToBackground(
+function saveToBackground(
   extract: ExtractResponse,
   overwriteId?: string,
 ): Promise<SaveArticleResponse> {
@@ -76,6 +112,7 @@ async function onSave(): Promise<void> {
     const res = await saveToBackground(extract, existing.id);
     if (res.ok) setStatus(`Updated: ${extract.title}`, 'success');
     else setStatus(`Update failed: ${res.reason ?? 'unknown'}`, 'error');
+    await renderSaved();
     saveButton.disabled = false;
     return;
   }
@@ -83,9 +120,16 @@ async function onSave(): Promise<void> {
   const res = await saveToBackground(extract);
   if (res.ok) setStatus(`Saved: ${extract.title}`, 'success');
   else setStatus(`Save failed: ${res.reason ?? 'unknown'}`, 'error');
+  await renderSaved();
   saveButton.disabled = false;
 }
 
 saveButton?.addEventListener('click', () => {
   onSave().catch((err) => setStatus(`Error: ${String(err)}`, 'error'));
 });
+
+exportBtn?.addEventListener('click', () => {
+  buildBundle().catch((err) => setStatus(`Export failed: ${String(err)}`, 'error'));
+});
+
+void renderSaved();

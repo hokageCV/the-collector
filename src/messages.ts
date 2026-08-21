@@ -1,7 +1,3 @@
-export interface ExtractRequest {
-  type: 'extract';
-}
-
 export interface ExtractResponse {
   ok: boolean;
   reason?: 'unparseable';

@@ -1,6 +1,12 @@
 import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
-import type { ExtractRequest, ExtractResponse } from './messages';
+import type { ExtractResponse } from './messages';
+
+declare global {
+  interface Window {
+    __theCollectorExtract?: () => ExtractResponse;
+  }
+}
 
 const PURIFY_CONFIG = {
   ALLOWED_TAGS: [
@@ -68,12 +74,5 @@ function extract(): ExtractResponse {
   };
 }
 
-chrome.runtime.onMessage.addListener(
-  (msg: ExtractRequest, _sender, sendResponse: (response: ExtractResponse) => void) => {
-    if (msg && msg.type === 'extract') {
-      sendResponse(extract());
-      return true;
-    }
-    return false;
-  },
-);
+window.__theCollectorExtract = extract;
+

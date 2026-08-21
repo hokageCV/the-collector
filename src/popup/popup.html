@@ -3,6 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <title>The Collector</title>
+    <style>
+      body { width: 260px; font-family: system-ui, sans-serif; padding: 12px; }
+      #save { width: 100%; padding: 8px; font-size: 14px; }
+      #status { font-size: 12px; min-height: 16px; margin-top: 8px; color: #555; }
+      #status[data-kind='error'] { color: #c0392b; }
+      #status[data-kind='success'] { color: #1e7e34; }
+    </style>
   </head>
   <body>
     <button id="save">Save Article</button>

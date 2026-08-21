@@ -3,29 +3,178 @@
   <head>
     <meta charset="utf-8" />
     <title>The Collector — Saved Articles</title>
+    <link rel="stylesheet" href="../styles/theme.css" />
     <style>
-      body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2em auto; padding: 0 1em; }
-      header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1em; }
-      #export { padding: 8px 14px; font-size: 14px; }
-      #empty { color: #777; }
-      ul { list-style: none; padding: 0; margin: 0; }
-      li { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid #e2e2e2; border-radius: 6px; margin-bottom: 8px; background: #fff; }
-      li.dragging { opacity: 0.5; }
-      li.drop-target { border-color: #1e7e34; }
-      .handle { cursor: grab; color: #999; user-select: none; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0 auto;
+        max-width: 760px;
+        padding: 48px 24px 64px;
+        font-family: var(--font-ui);
+        background:
+          radial-gradient(90% 55% at 50% -10%, rgba(255, 152, 0, 0.06), transparent 60%),
+          var(--color-c-background);
+        color: var(--color-c-text);
+      }
+      .page-head {
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 30px;
+        padding-bottom: 22px;
+      }
+      .page-head::after {
+        content: "";
+        position: absolute;
+        left: 2px;
+        bottom: 0;
+        width: 68px;
+        height: 3px;
+        border-radius: 99px;
+        background: linear-gradient(90deg, var(--color-c-accent), transparent);
+      }
+      h1 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-style: italic;
+        font-weight: 650;
+        font-size: clamp(26px, 4vw, 34px);
+      }
+      .lede {
+        margin: 8px 0 0;
+        font-size: 13.5px;
+        color: var(--color-c-text-muted);
+      }
+      #export {
+        flex: none;
+        padding: 11px 20px;
+        font-family: var(--font-ui);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #1c1815;
+        background: linear-gradient(180deg, var(--color-c-accent-subtle), var(--color-c-accent));
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.28),
+          0 8px 20px -10px rgba(255, 152, 0, 0.55);
+        transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+      }
+      #export:hover:not(:disabled) {
+        filter: brightness(1.06);
+        transform: translateY(-1px);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.28),
+          0 12px 26px -10px rgba(255, 152, 0, 0.6);
+      }
+      #export:active:not(:disabled) { transform: translateY(0); filter: brightness(0.97); }
+      #export:disabled { opacity: 0.45; cursor: default; }
+      #empty {
+        padding: 56px 0;
+        text-align: center;
+        font-family: var(--font-display);
+        font-style: italic;
+        font-size: 16px;
+        color: var(--color-c-text-muted);
+      }
+      ul { list-style: none; margin: 0; padding: 0; }
+      li {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 10px;
+        padding: 14px 16px;
+        background: var(--color-c-surface);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+        animation: rise 0.3s ease backwards;
+      }
+      li:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lift);
+      }
+      li:nth-child(2) { animation-delay: 0.04s; }
+      li:nth-child(3) { animation-delay: 0.08s; }
+      li:nth-child(4) { animation-delay: 0.12s; }
+      li:nth-child(n + 5) { animation-delay: 0.16s; }
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(8px); }
+      }
+      li.dragging {
+        opacity: 0.35;
+        transform: scale(0.985);
+      }
+      li.drop-target {
+        box-shadow:
+          0 0 0 2px var(--color-c-secondary),
+          0 14px 30px -16px rgba(110, 193, 214, 0.35);
+      }
+      .handle {
+        flex: none;
+        color: var(--color-c-text-muted);
+        opacity: 0.55;
+        font-size: 15px;
+        cursor: grab;
+        user-select: none;
+        transition: opacity 0.12s ease;
+      }
+      li:hover .handle { opacity: 1; }
       .info { flex: 1; min-width: 0; }
-      .title { font-weight: 600; }
-      .sub { font-size: 12px; color: #777; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .sub a { color: #555; }
-      .del { border: none; background: transparent; color: #c0392b; cursor: pointer; font-size: 16px; }
+      .title {
+        font-weight: 700;
+        font-size: 15px;
+      }
+      .sub {
+        margin-top: 3px;
+        font-size: 12px;
+        color: var(--color-c-text-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .sub a {
+        color: inherit;
+        text-decoration: none;
+        transition: color 0.12s ease;
+      }
+      .sub a:hover { color: var(--color-c-accent-subtle); }
+      .del {
+        flex: none;
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--color-c-primary);
+        opacity: 0.6;
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
+        transition: opacity 0.12s ease, background 0.12s ease;
+      }
+      .del:hover {
+        opacity: 1;
+        background: rgba(229, 115, 115, 0.14);
+      }
     </style>
   </head>
   <body>
-    <header>
-      <h1>Saved Articles</h1>
+    <header class="page-head">
+      <div>
+        <h1>Saved Articles</h1>
+        <p class="lede">Your local collection, ready for Calibre.</p>
+      </div>
       <button id="export" disabled>Export bundle</button>
     </header>
-    <p id="empty">No articles saved yet. Use the popup on a blog post to save one.</p>
+    <p id="empty">Nothing collected yet.</p>
     <ul id="list"></ul>
     <script type="module" src="options.js"></script>
   </body>

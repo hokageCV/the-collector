@@ -1,0 +1,51 @@
+:root {
+  --color-c-accent: #ff9800;
+  --color-c-accent-hover: #fb8c00;
+  --color-c-accent-subtle: #ffb74d;
+
+  --color-c-background: #24201c;
+  --color-c-surface: #2e2924;
+  --color-c-surface-muted: #3a332d;
+  --color-c-border: #4a423a;
+
+  --color-c-primary: #e57373;
+  --color-c-secondary: #6ec1d6;
+
+  --color-c-text: #f5f1eb;
+  --color-c-text-muted: #c2b8ad;
+
+  --color-c-nav: #28231f;
+
+  --color-c-goal-a: #ff8a3d;
+  --color-c-goal-b: #d98b66;
+  --color-c-goal-c: #9a6a52;
+  --color-c-goal-miss: #ef5350;
+
+  --font-display: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-card: inset 0 1px 0 rgba(245, 241, 235, 0.04), 0 10px 24px -18px rgba(0, 0, 0, 0.8);
+  --shadow-lift: inset 0 1px 0 rgba(245, 241, 235, 0.05), 0 14px 30px -16px rgba(0, 0, 0, 0.85);
+
+  color-scheme: dark;
+}
+
+::selection {
+  background: rgba(255, 152, 0, 0.32);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-c-accent-subtle);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

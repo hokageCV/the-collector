@@ -4,7 +4,6 @@ import type { ProgressMessage, SaveArticleResponse } from '../messages';
 
 const saveButton = document.getElementById('save') as HTMLButtonElement | null;
 const statusEl = document.getElementById('status') as HTMLParagraphElement | null;
-const countEl = document.getElementById('count') as HTMLSpanElement | null;
 const exportBtn = document.getElementById('export') as HTMLButtonElement | null;
 const savedEl = document.getElementById('saved') as HTMLUListElement | null;
 const emptyEl = document.getElementById('empty') as HTMLParagraphElement | null;
@@ -16,9 +15,8 @@ function setStatus(text: string, kind: 'info' | 'error' | 'success' = 'info'): v
 }
 
 async function renderSaved(): Promise<void> {
-  if (!savedEl || !countEl || !emptyEl || !exportBtn) return;
+  if (!savedEl || !emptyEl || !exportBtn) return;
   const articles = await listArticles();
-  countEl.textContent = String(articles.length);
   exportBtn.disabled = articles.length === 0;
   emptyEl.hidden = articles.length > 0;
   savedEl.innerHTML = '';

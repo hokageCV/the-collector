@@ -21,6 +21,7 @@ const staticAssets = [
   'manifest.json',
   'src/popup/popup.html',
   'src/options/options.html',
+  'src/styles/theme.css',
 ];
 
 async function copyStatic() {
@@ -46,6 +47,7 @@ async function run() {
     bundle: true,
     format: 'esm',
     target: 'es2022',
+    loader: { '.css': 'text' },
     sourcemap: false,
     minify: !watch,
     logLevel: 'info',

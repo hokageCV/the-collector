@@ -1,5 +1,6 @@
 import { zipSync } from 'fflate';
 import { listArticles, getImagesForArticle } from '../db/db';
+import themeCss from '../styles/theme.css';
 
 const MIME_EXT: Record<string, string> = {
   'image/png': 'png',
@@ -52,16 +53,95 @@ export async function buildBundle(): Promise<void> {
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Reading List</title>
+<title>The Collector — Reading List</title>
 <style>
-  body { font-family: Georgia, serif; max-width: 42em; margin: 2em auto; padding: 0 1em; line-height: 1.5; }
-  nav { border-bottom: 1px solid #ccc; margin-bottom: 2em; padding-bottom: 1em; }
-  nav ol { padding-left: 1.2em; }
-  .meta { color: #777; font-size: 0.85em; font-style: italic; }
-  section { margin-bottom: 3em; }
-  img { max-width: 100%; height: auto; }
-  pre { background: #f4f4f4; padding: 0.8em; overflow-x: auto; }
-  code { background: #f4f4f4; padding: 0.1em 0.3em; }
+${themeCss}
+  * { box-sizing: border-box; }
+  body {
+    font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+    max-width: 44em;
+    margin: 0 auto;
+    padding: 3em 1.5em 5em;
+    line-height: 1.65;
+    background:
+      radial-gradient(90% 40% at 50% -10%, rgba(255, 152, 0, 0.05), transparent 60%),
+      var(--color-c-background);
+    color: var(--color-c-text);
+  }
+  nav {
+    margin: 0 0 3.5em;
+    padding: 1.6em 1.8em;
+    background: var(--color-c-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+  nav h1 {
+    margin: 0 0 0.7em;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 1.15em;
+    color: var(--color-c-accent-subtle);
+  }
+  nav ol { margin: 0; padding-left: 1.4em; }
+  nav li { margin: 0.35em 0; }
+  nav a { color: var(--color-c-text); text-decoration: none; }
+  nav a:hover { color: var(--color-c-accent-subtle); }
+  section { margin-bottom: 4.5em; }
+  section + section { padding-top: 3em; position: relative; }
+  section + section::before {
+    content: "\\2726";
+    display: block;
+    margin-bottom: 2.5em;
+    text-align: center;
+    font-size: 0.8em;
+    color: var(--color-c-accent);
+    opacity: 0.6;
+  }
+  section > h1 {
+    margin: 0 0 0.6em;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.9em;
+    line-height: 1.25;
+  }
+  .meta {
+    margin: 0 0 1.6em;
+    color: var(--color-c-text-muted);
+    font-size: 0.82em;
+  }
+  a { color: var(--color-c-accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  img { max-width: 100%; height: auto; border-radius: 10px; }
+  blockquote {
+    margin: 1.4em 0;
+    padding: 0.2em 0 0.2em 1.2em;
+    border-left: 3px solid var(--color-c-accent);
+    color: var(--color-c-text-muted);
+    font-style: italic;
+  }
+  pre {
+    background: var(--color-c-surface-muted);
+    padding: 1em 1.2em;
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    line-height: 1.5;
+    font-size: 0.88em;
+  }
+  code {
+    background: var(--color-c-surface-muted);
+    padding: 0.12em 0.38em;
+    border-radius: 6px;
+    font-size: 0.9em;
+  }
+  pre code { background: transparent; padding: 0; }
+  hr {
+    border: none;
+    height: 3px;
+    width: 110px;
+    margin: 2.5em auto;
+    border-radius: 99px;
+    background: var(--color-c-border);
+  }
 </style>
 </head>
 <body>

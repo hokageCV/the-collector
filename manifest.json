@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "The Collector",
+  "version": "0.1.0",
+  "description": "Extract, sanitize, and store blog articles locally; export an HTML+images bundle for Calibre.",
+  "permissions": ["activeTab", "scripting", "storage", "downloads"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "The Collector",
+    "default_popup": "popup/popup.html"
+  },
+  "options_page": "options/options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["content-script.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

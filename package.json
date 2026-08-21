@@ -1,0 +1,24 @@
+{
+  "name": "the-collector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MV3 The Collector: extract, sanitize, store locally, export HTML+images bundle for Calibre.",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.5.0",
+    "dompurify": "^3.1.6",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.270",
+    "@types/node": "^22.20.1",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0"
+  }
+}

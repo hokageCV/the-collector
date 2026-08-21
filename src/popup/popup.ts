@@ -15,6 +15,7 @@ function setStatus(text: string, kind: 'info' | 'error' | 'success' = 'info'): v
 }
 
 async function renderSaved(): Promise<void> {
+  await syncSaveButton();
   if (!savedEl || !emptyEl || !exportBtn) return;
   const articles = await listArticles();
   exportBtn.disabled = articles.length === 0;
@@ -47,12 +48,17 @@ async function getActiveTab(): Promise<chrome.tabs.Tab | null> {
   return tabs[0] ?? null;
 }
 
-function saveToBackground(
-  tabId: number,
-  overwriteId?: string,
-): Promise<SaveArticleResponse> {
+// The save button is disabled while the active tab's URL is already saved.
+async function syncSaveButton(): Promise<void> {
+  if (!saveButton) return;
+  const tab = await getActiveTab();
+  const existing = tab?.url ? await getArticleByUrl(tab.url) : undefined;
+  saveButton.disabled = existing !== undefined;
+}
+
+function saveToBackground(tabId: number): Promise<SaveArticleResponse> {
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: 'save', tabId, overwriteId }, (resp: SaveArticleResponse) => {
+    chrome.runtime.sendMessage({ type: 'save', tabId }, (resp: SaveArticleResponse) => {
       resolve(resp ?? { ok: false, reason: chrome.runtime.lastError?.message ?? 'no response' });
     });
   });
@@ -77,21 +83,14 @@ async function onSave(): Promise<void> {
     return;
   }
 
-  const existing = await getArticleByUrl(tab.url);
-  if (existing) {
-    const ok = confirm(`"${existing.title}" is already saved. Re-save (overwrite)?`);
-    if (!ok) {
-      setStatus('Already saved (left as-is).', 'info');
-      saveButton.disabled = false;
-      return;
-    }
+  const res = await saveToBackground(tab.id);
+  if (res.ok) {
+    setStatus(`Saved: ${tab.title ?? tab.url}`, 'success');
+    await renderSaved();
+  } else {
+    setStatus(`Save failed: ${res.reason ?? 'unknown'}`, 'error');
+    saveButton.disabled = false;
   }
-
-  const res = await saveToBackground(tab.id, existing?.id);
-  if (res.ok) setStatus(`Saved: ${tab.title ?? tab.url}`, 'success');
-  else setStatus(`Save failed: ${res.reason ?? 'unknown'}`, 'error');
-  await renderSaved();
-  saveButton.disabled = false;
 }
 
 saveButton?.addEventListener('click', () => {

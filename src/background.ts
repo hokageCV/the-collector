@@ -311,6 +311,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   return false;
 });
 
+function flashBadge(ok: boolean): void {
+  chrome.action.setBadgeText({ text: ok ? '✓' : '!' });
+  chrome.action.setBadgeBackgroundColor({ color: ok ? '#2e7d32' : '#c62828' });
+  setTimeout(() => chrome.action.setBadgeText({ text: '' }), 1500);
+}
+
+chrome.commands.onCommand.addListener((command) => {
+  if (command !== 'save-article') return;
+  chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+    if (typeof tab?.id !== 'number') return;
+    handleSave({ type: 'save', tabId: tab.id })
+      .then((resp) => flashBadge(resp.ok))
+      .catch(() => flashBadge(false));
+  });
+});
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[the-collector] installed');
 });

@@ -15,6 +15,14 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "commands": {
+    "save-article": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+E"
+      },
+      "description": "Save current page"
+    }
+  },
   "action": {
     "default_title": "The Collector",
     "default_popup": "popup/popup.html"

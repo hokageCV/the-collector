@@ -15,9 +15,21 @@ and exports a self-contained HTML + images bundle for conversion with Calibre
 ## Usage
 
 - Click the toolbar icon and press **Save** to clip the current article.
-- Already-saved URLs prompt for overwrite.
-- The **Options** page lists saved articles, lets you drag to reorder, delete,
-  and export the combined bundle.
+- Or press **Ctrl+Shift+E** from any tab — same save flow, no popup needed. 
+  - Remappable at `chrome://extensions/shortcuts`.
+
+## Convert to Kindle (.azw3)
+
+Export the combined bundle from the Options page, then — with
+[Calibre](https://calibre-ebook.com/) installed (`ebook-convert` on PATH):
+
+```bash
+unzip the-collector-export.zip -d export/ && cd export/ && DT=$(date '+%Y-%m-%d_%H-%M') && ebook-convert combined.html "../reading_list_${DT}.azw3" --title "My Reading List $(date '+%Y-%m-%d %H:%M')" --authors "Various" && cd .. && rm -rf export/ the-collector-export.zip
+```
+
+Produces a timestamped `reading_list_<date>.azw3` next to the zip, then cleans
+up both the unzipped folder and the archive.
+
 
 ## Interactive widgets
 
@@ -51,3 +63,4 @@ document.querySelector('#my-diagram').setAttribute('data-collector-capture', '')
 - **Single state**: only the widget's current/initial render is captured, not
   hover or other interactive states.
 - Save time scales with widget count (captures run serially, ~0.5s each).
+

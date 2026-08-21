@@ -1,10 +1,11 @@
 import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
-import type { ExtractResponse } from './messages';
+import type { DetectResponse, ExtractResponse, WidgetInfo, WidgetRect } from './messages';
 
 declare global {
   interface Window {
-    __theCollectorExtract?: () => ExtractResponse;
+    __theCollectorDetect?: () => DetectResponse;
+    __theCollectorExtract?: (screenshots: Record<string, string>) => ExtractResponse;
   }
 }
 
@@ -12,6 +13,18 @@ const PURIFY_CONFIG = {
   ALLOW_DATA_ATTR: false,
   FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'link', 'meta', 'base'],
 };
+
+const MIN_MEDIA_DIM = 100;
+const MIN_BOX_AREA = 5000;
+const SCORE_THRESHOLD = 5;
+
+function uuid(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return 'w-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+}
 
 function flattenMath(doc: Document): void {
   const katexEls = doc.querySelectorAll('.katex, .katex-display');
@@ -56,8 +69,132 @@ function collectImageUrls(html: string): string[] {
   return urls;
 }
 
-function extract(): ExtractResponse {
+// ---- Widget detection -------------------------------------------------------
+
+function rectOf(el: Element): WidgetRect | null {
+  const r = el.getBoundingClientRect();
+  if (r.width < 1 || r.height < 1) return null;
+  return { x: r.x, y: r.y, width: r.width, height: r.height };
+}
+
+function isInViewport(r: WidgetRect): boolean {
+  return (
+    r.x >= 0 &&
+    r.y >= 0 &&
+    r.x + r.width <= window.innerWidth &&
+    r.y + r.height <= window.innerHeight
+  );
+}
+
+function textLength(el: Element): number {
+  return (el.textContent ?? '').trim().length;
+}
+
+// A plain single-image figure is already handled by the normal image pipeline;
+// don't double-capture it as a widget.
+function isSingleImageWrapper(el: Element): boolean {
+  const imgs = el.querySelectorAll('img, picture');
+  if (imgs.length !== 1) return false;
+  const otherMedia = el.querySelectorAll('svg, canvas').length;
+  return otherMedia === 0 && textLength(el) < 200;
+}
+
+function scoreElement(el: Element): number {
+  let score = 0;
+
+  const media = el.querySelectorAll('svg, canvas');
+  let hasBigMedia = false;
+  for (const m of media) {
+    const r = m.getBoundingClientRect();
+    if (r.width > MIN_MEDIA_DIM && r.height > MIN_MEDIA_DIM) {
+      hasBigMedia = true;
+      break;
+    }
+  }
+  if (hasBigMedia) score += 3;
+
+  if (el.querySelectorAll('button, [role="button"], input[type="range"]').length > 0) {
+    score += 2;
+  }
+
+  const r = el.getBoundingClientRect();
+  const area = r.width * r.height;
+  const len = textLength(el);
+  if (area > MIN_BOX_AREA && len < area / 300) {
+    score += 2;
+  }
+
+  // Weak framework-root signal (internals change often; never a hard requirement).
+  if (el.hasAttribute('data-reactroot') || el.querySelector('[data-reactroot]')) {
+    score += 1;
+  }
+
+  return score;
+}
+
+function detectWidgets(): DetectResponse {
+  const tagged = new Set<Element>();
+  const widgets: WidgetInfo[] = [];
+
+  const all = Array.from(document.body.querySelectorAll('*'));
+  for (const el of all) {
+    // Skip any element already inside a tagged subtree (avoid nested double-count).
+    let parent = el.parentElement;
+    while (parent) {
+      if (tagged.has(parent)) break;
+      parent = parent.parentElement;
+    }
+    if (parent && tagged.has(parent)) continue;
+
+    if (el.hasAttribute('data-collector-skip')) {
+      tagged.add(el);
+      continue;
+    }
+
+    const forced = el.hasAttribute('data-collector-capture');
+    const score = forced ? SCORE_THRESHOLD + 1 : scoreElement(el);
+
+    if (score >= SCORE_THRESHOLD) {
+      if (isSingleImageWrapper(el)) continue;
+      const rect = rectOf(el);
+      if (!rect) {
+        tagged.add(el);
+        continue;
+      }
+      const id = uuid();
+      el.setAttribute('data-collector-widget-id', id);
+      tagged.add(el);
+      widgets.push({ id, rect, in_viewport: isInViewport(rect) });
+    }
+  }
+
+  return {
+    scroll: { x: window.scrollX, y: window.scrollY },
+    viewport: { w: window.innerWidth, h: window.innerHeight },
+    dpr: window.devicePixelRatio || 1,
+    widgets,
+  };
+}
+
+// ---- Extraction -------------------------------------------------------------
+
+function extract(screenshots: Record<string, string> = {}): ExtractResponse {
   const cloned = document.cloneNode(true) as Document;
+
+  for (const [id, src] of Object.entries(screenshots)) {
+    const live = document.querySelector(`[data-collector-widget-id="${id}"]`);
+    const inClone = cloned.querySelector(`[data-collector-widget-id="${id}"]`);
+    if (!live || !inClone) continue;
+    const img = cloned.createElement('img');
+    img.setAttribute('src', src);
+    img.setAttribute('alt', live.getAttribute('aria-label') ?? 'interactive widget');
+    inClone.replaceWith(img);
+  }
+  // Remove our marker attribute from the clone (DOMPurify would strip it anyway).
+  cloned
+    .querySelectorAll('[data-collector-widget-id]')
+    .forEach((e) => e.removeAttribute('data-collector-widget-id'));
+
   normalizeImages(cloned);
   flattenMath(cloned);
 
@@ -78,5 +215,5 @@ function extract(): ExtractResponse {
   };
 }
 
+window.__theCollectorDetect = detectWidgets;
 window.__theCollectorExtract = extract;
-

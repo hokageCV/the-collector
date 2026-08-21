@@ -5,9 +5,18 @@ import {
   saveImage,
   type ArticleRecord,
 } from './db/db';
-import type { SaveArticleRequest, SaveArticleResponse } from './messages';
+import type {
+  DetectResponse,
+  ExtractResponse,
+  ProgressMessage,
+  SaveArticleRequest,
+  SaveArticleResponse,
+  WidgetInfo,
+} from './messages';
 
 const MAX_IMAGE_WIDTH = 1600;
+const CAPTURE_SPACING_MS = 450;
+const SCROLL_SETTLE_MS = 200;
 
 const MIME_EXT: Record<string, string> = {
   'image/png': 'png',
@@ -37,6 +46,21 @@ function uniqueSlug(base: string, existing: string[]): string {
   let i = 2;
   while (existing.includes(`${base}-${i}`)) i++;
   return `${base}-${i}`;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function reportProgress(text: string): void {
+  try {
+    const p = chrome.runtime.sendMessage({ type: 'collector-progress', text } as ProgressMessage);
+    if (p && typeof (p as Promise<unknown>).catch === 'function') {
+      (p as Promise<unknown>).catch(() => {});
+    }
+  } catch {
+    // No receiver (popup closed) — progress is best-effort.
+  }
 }
 
 async function fetchImage(url: string): Promise<{ blob: Blob; mime: string }> {
@@ -94,17 +118,159 @@ function rewriteHtml(html: string, replacements: Map<string, string>): string {
   return out;
 }
 
+// ---- Widget screenshot capture (Phase 2) ------------------------------------
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return `data:${blob.type || 'image/png'};base64,${btoa(binary)}`;
+}
+
+// captureVisibleTab only captures the current viewport at devicePixelRatio.
+// Taller-than-viewport widgets are cropped to what fits (known limitation).
+async function captureWidget(
+  tabId: number,
+  windowId: number,
+  widget: WidgetInfo,
+  dpr: number,
+): Promise<string | null> {
+  let rect = widget.rect;
+
+  if (!widget.in_viewport) {
+    await chrome.scripting
+      .executeScript({
+        target: { tabId },
+        func: (id: string) => {
+          const el = document.querySelector(`[data-collector-widget-id="${id}"]`);
+          if (el) el.scrollIntoView({ block: 'center' });
+        },
+        args: [widget.id],
+      })
+      .catch(() => {});
+    await delay(SCROLL_SETTLE_MS);
+
+    const measured = await chrome.scripting
+      .executeScript({
+        target: { tabId },
+        func: (id: string) => {
+          const el = document.querySelector(`[data-collector-widget-id="${id}"]`);
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return { x: r.x, y: r.y, width: r.width, height: r.height };
+        },
+        args: [widget.id],
+      })
+      .catch(() => null);
+    const remeasured = measured && measured[0] ? (measured[0].result as WidgetRect | null) : null;
+    if (!remeasured) return null;
+    rect = remeasured;
+  }
+
+  const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+  const blob = await (await fetch(dataUrl)).blob();
+  const bitmap = await createImageBitmap(blob);
+
+  const sx = Math.max(0, Math.floor(rect.x * dpr));
+  const sy = Math.max(0, Math.floor(rect.y * dpr));
+  const sw = Math.min(bitmap.width - sx, Math.ceil(rect.width * dpr));
+  const sh = Math.min(bitmap.height - sy, Math.ceil(rect.height * dpr));
+  if (sw <= 0 || sh <= 0) {
+    bitmap.close();
+    return null;
+  }
+
+  const canvas = new OffscreenCanvas(sw, sh);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    bitmap.close();
+    return null;
+  }
+  ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
+  bitmap.close();
+
+  const out = await canvas.convertToBlob({ type: 'image/png' });
+  return blobToDataUrl(out);
+}
+
+type WidgetRect = { x: number; y: number; width: number; height: number };
+
 async function handleSave(req: SaveArticleRequest): Promise<SaveArticleResponse> {
-  const ex = req.extract;
-  if (!ex.ok || !ex.html || !ex.url || !ex.title) {
+  if (typeof req.tabId !== 'number') {
+    return { ok: false, reason: 'missing tabId' };
+  }
+
+  const tab = await chrome.tabs.get(req.tabId).catch(() => null);
+  if (!tab) return { ok: false, reason: 'tab not found' };
+  const windowId = tab.windowId;
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: req.tabId },
+      files: ['content-script.js'],
+    });
+  } catch (err) {
+    return { ok: false, reason: `inject failed: ${String(err)}` };
+  }
+
+  let detect: DetectResponse;
+  try {
+    const result = await chrome.scripting.executeScript({
+      target: { tabId: req.tabId },
+      func: () => window.__theCollectorDetect!(),
+    });
+    detect = result[0].result as DetectResponse;
+  } catch (err) {
+    return { ok: false, reason: `detect failed: ${String(err)}` };
+  }
+
+  const screenshots: Record<string, string> = {};
+  for (let i = 0; i < detect.widgets.length; i++) {
+    const widget = detect.widgets[i];
+    reportProgress(`Capturing widget ${i + 1} of ${detect.widgets.length}…`);
+    try {
+      const shot = await captureWidget(req.tabId, windowId, widget, detect.dpr);
+      if (shot) screenshots[widget.id] = shot;
+    } catch {
+      // Skip this widget; it falls back to DOMPurify's text-soup behavior.
+    }
+    await delay(CAPTURE_SPACING_MS);
+  }
+
+  // Restore the original scroll position after capture.
+  await chrome.scripting
+    .executeScript({
+      target: { tabId: req.tabId },
+      func: (s: { x: number; y: number }) => window.scrollTo(s.x, s.y),
+      args: [detect.scroll],
+    })
+    .catch(() => {});
+
+  let extract: ExtractResponse;
+  try {
+    const result = await chrome.scripting.executeScript({
+      target: { tabId: req.tabId },
+      func: (sc: Record<string, string>) => window.__theCollectorExtract!(sc),
+      args: [screenshots],
+    });
+    extract = result[0].result as ExtractResponse;
+  } catch (err) {
+    return { ok: false, reason: `extract failed: ${String(err)}` };
+  }
+
+  if (!extract.ok || !extract.html || !extract.url || !extract.title) {
     return { ok: false, reason: 'invalid extract payload' };
   }
 
-  const existing = req.overwriteId ? await getArticleByUrl(ex.url) : undefined;
+  const existing = req.overwriteId ? await getArticleByUrl(extract.url) : undefined;
   const articleId = req.overwriteId ?? existing?.id ?? crypto.randomUUID();
 
-  const replacements = await fetchAndStoreImages(ex.images ?? [], articleId);
-  const html = rewriteHtml(ex.html, replacements);
+  const replacements = await fetchAndStoreImages(extract.images ?? [], articleId);
+  const html = rewriteHtml(extract.html, replacements);
 
   const articles = await listArticles();
   let slug: string;
@@ -113,16 +279,16 @@ async function handleSave(req: SaveArticleRequest): Promise<SaveArticleResponse>
     slug = existing.slug;
     order = existing.order_index;
   } else {
-    slug = uniqueSlug(slugify(ex.title), articles.map((a) => a.slug));
+    slug = uniqueSlug(slugify(extract.title), articles.map((a) => a.slug));
     order = articles.length ? Math.max(...articles.map((a) => a.order_index)) + 1 : 0;
   }
 
   const record: ArticleRecord = {
     id: articleId,
-    url: ex.url,
-    title: ex.title,
-    byline: ex.byline ?? null,
-    excerpt: ex.excerpt ?? null,
+    url: extract.url,
+    title: extract.title,
+    byline: extract.byline ?? null,
+    excerpt: extract.excerpt ?? null,
     html,
     slug,
     saved_at: Date.now(),

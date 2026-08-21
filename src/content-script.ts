@@ -17,6 +17,10 @@ const PURIFY_CONFIG = {
 const MIN_MEDIA_DIM = 100;
 const MIN_BOX_AREA = 5000;
 const SCORE_THRESHOLD = 5;
+// Widgets are visual-first. A container carrying this much prose is the article
+// itself (or a layout wrapper), not an interactive widget. Skip it — but still
+// let its descendants be considered, and honor a manual force-capture.
+const LOW_TEXT_MAX = 300;
 
 function uuid(): string {
   try {
@@ -152,6 +156,8 @@ function detectWidgets(): DetectResponse {
     }
 
     const forced = el.hasAttribute('data-collector-capture');
+    if (!forced && textLength(el) > LOW_TEXT_MAX) continue;
+
     const score = forced ? SCORE_THRESHOLD + 1 : scoreElement(el);
 
     if (score >= SCORE_THRESHOLD) {
@@ -200,13 +206,13 @@ function extract(screenshots: Record<string, string> = {}): ExtractResponse {
 
   const article = new Readability(cloned).parse();
   if (!article || !article.content) {
-    return { ok: false, reason: 'unparseable' };
+    return { ok: false, reason: 'unparseable', title: document.title || 'Untitled' };
   }
 
   const clean = DOMPurify.sanitize(article.content, PURIFY_CONFIG) as string;
   return {
     ok: true,
-    title: article.title,
+    title: article.title || document.title || 'Untitled',
     byline: article.byline ?? null,
     excerpt: article.excerpt ?? null,
     html: clean,

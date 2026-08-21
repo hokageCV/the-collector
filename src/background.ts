@@ -262,8 +262,11 @@ async function handleSave(req: SaveArticleRequest): Promise<SaveArticleResponse>
     return { ok: false, reason: `extract failed: ${String(err)}` };
   }
 
-  if (!extract.ok || !extract.html || !extract.url || !extract.title) {
-    return { ok: false, reason: 'invalid extract payload' };
+  if (!extract.ok || !extract.html || !extract.url) {
+    return {
+      ok: false,
+      reason: `invalid extract payload (${extract?.reason ?? 'missing fields'})`,
+    };
   }
 
   const existing = req.overwriteId ? await getArticleByUrl(extract.url) : undefined;

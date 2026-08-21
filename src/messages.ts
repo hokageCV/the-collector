@@ -21,7 +21,7 @@ export interface DetectResponse {
 export interface ExtractResponse {
   ok: boolean;
   reason?: 'unparseable';
-  title?: string;
+  title: string;
   byline?: string | null;
   excerpt?: string | null;
   html?: string;

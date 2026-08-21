@@ -35,10 +35,8 @@ async function renderSaved(): Promise<void> {
     del.title = 'Delete';
     del.textContent = '×';
     del.addEventListener('click', async () => {
-      if (confirm(`Delete "${a.title}"? This also removes its images.`)) {
-        await deleteArticle(a.id);
-        await renderSaved();
-      }
+      await deleteArticle(a.id);
+      await renderSaved();
     });
 
     li.append(name, del);

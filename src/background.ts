@@ -92,6 +92,19 @@ async function fetchImage(url: string): Promise<{ blob: Blob; mime: string }> {
   return { blob, mime };
 }
 
+async function makePlaceholderImage(): Promise<{ blob: Blob; mime: string }> {
+  const canvas = new OffscreenCanvas(800, 450);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('no 2d context');
+  ctx.fillStyle = '#e8eaed';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#bdc1c6';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(12, 12, canvas.width - 24, canvas.height - 24);
+  const blob = await canvas.convertToBlob({ type: 'image/png' });
+  return { blob, mime: 'image/png' };
+}
+
 async function fetchAndStoreImages(
   urls: string[],
   articleId: string,
@@ -105,7 +118,16 @@ async function fetchAndStoreImages(
       await saveImage({ key, article_id: articleId, original_src: url, blob, mime_type: mime });
       replacements.set(url, local);
     } catch {
-      // Skip failed images; the original URL stays in the HTML as a fallback.
+      // Unfetchable image: swap in a stored placeholder so nothing stays remote.
+      try {
+        const { blob, mime } = await makePlaceholderImage();
+        const key = crypto.randomUUID();
+        const local = `images/${key}.${extForMime(mime)}`;
+        await saveImage({ key, article_id: articleId, original_src: url, blob, mime_type: mime });
+        replacements.set(url, local);
+      } catch {
+        // Could not even store a placeholder; leave the remote URL as-is.
+      }
     }
   }
   return replacements;
@@ -114,6 +136,8 @@ async function fetchAndStoreImages(
 function rewriteHtml(html: string, replacements: Map<string, string>): string {
   let out = html;
   for (const [url, local] of replacements) {
+    // Serialized attribute values escape '&' to '&amp;'; match both forms.
+    out = out.split(url.replace(/&/g, '&amp;')).join(local);
     out = out.split(url).join(local);
   }
   return out;

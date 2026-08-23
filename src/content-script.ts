@@ -40,6 +40,9 @@ function flattenMath(doc: Document): void {
 }
 
 function normalizeImages(doc: Document): void {
+  // <source> outranks <img src> inside <picture>; drop it so the resolved
+  // src (the only URL we download) is what actually renders.
+  doc.querySelectorAll('picture source').forEach((source) => source.remove());
   const imgs = doc.querySelectorAll('img');
   for (const img of imgs) {
     const candidate =

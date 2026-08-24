@@ -18,6 +18,9 @@ import type {
 const MAX_IMAGE_WIDTH = 1600;
 const CAPTURE_SPACING_MS = 450;
 const SCROLL_SETTLE_MS = 200;
+// Avoid flashing feedback for quick saves, while reassuring users before a
+// noticeably slow save feels unresponsive.
+const PROCESSING_TOAST_DELAY_MS = 250;
 
 const MIME_EXT: Record<string, string> = {
   'image/png': 'png',
@@ -342,8 +345,8 @@ function flashBadge(ok: boolean): void {
   setTimeout(() => chrome.action.setBadgeText({ text: '' }), 1500);
 }
 
-function sendToast(tabId: number, ok: boolean): void {
-  const msg: ToastMessage = { type: 'collector-toast', ok };
+function sendToast(tabId: number, state: ToastMessage['state']): void {
+  const msg: ToastMessage = { type: 'collector-toast', state };
   chrome.tabs.sendMessage(tabId, msg).catch(() => {});
 }
 
@@ -351,14 +354,22 @@ chrome.commands.onCommand.addListener((command) => {
   if (command !== 'save-article') return;
   chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
     if (typeof tab?.id !== 'number') return;
+    const tabId = tab.id;
+    const processingTimer = setTimeout(
+      () => sendToast(tabId, 'processing'),
+      PROCESSING_TOAST_DELAY_MS,
+    );
+
     handleSave({ type: 'save', tabId: tab.id })
       .then((resp) => {
+        clearTimeout(processingTimer);
         flashBadge(resp.ok);
-        sendToast(tab.id!, resp.ok);
+        sendToast(tabId, resp.ok ? 'success' : 'error');
       })
       .catch(() => {
+        clearTimeout(processingTimer);
         flashBadge(false);
-        sendToast(tab.id!, false);
+        sendToast(tabId, 'error');
       });
   });
 });

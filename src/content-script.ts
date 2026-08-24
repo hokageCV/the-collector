@@ -235,7 +235,7 @@ let toastHost: HTMLDivElement | null = null;
 let toastLabel: HTMLElement | null = null;
 let toastHideTimer: ReturnType<typeof setTimeout> | undefined;
 
-function showToast(ok: boolean): void {
+function showToast(state: ToastMessage['state']): void {
   if (!document.body) return;
 
   if (!toastHost || !toastLabel) {
@@ -256,9 +256,22 @@ function showToast(ok: boolean): void {
         transform: translateY(-6px);
         transition: opacity 150ms ease, transform 150ms ease;
       }
-      .ok { background: #2e7d32; }
-      .err { background: #c62828; }
+      .processing { background: #37474f; }
+      .success { background: #2e7d32; }
+      .error { background: #c62828; }
+      .spinner {
+        display: inline-block;
+        width: 11px;
+        height: 11px;
+        margin-right: 7px;
+        vertical-align: -1px;
+        border: 2px solid rgba(255, 255, 255, 0.45);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 650ms linear infinite;
+      }
       .show { opacity: 1; transform: translateY(0); }
+      @keyframes spin { to { transform: rotate(360deg); } }
     `;
     const pill = document.createElement('div');
     pill.className = 'pill';
@@ -269,16 +282,26 @@ function showToast(ok: boolean): void {
     toastLabel = pill;
   }
 
-  toastLabel.textContent = ok ? 'Saved ✓' : 'Save failed';
-  toastLabel.classList.remove('show', 'ok', 'err');
-  toastLabel.classList.add(ok ? 'ok' : 'err');
+  toastLabel.replaceChildren();
+  if (state === 'processing') {
+    const spinner = document.createElement('span');
+    spinner.className = 'spinner';
+    spinner.setAttribute('aria-hidden', 'true');
+    toastLabel.append(spinner, 'Saving article…');
+  } else {
+    toastLabel.textContent = state === 'success' ? 'Saved ✓' : 'Save failed';
+  }
+  toastLabel.classList.remove('show', 'processing', 'success', 'error');
+  toastLabel.classList.add(state);
   requestAnimationFrame(() => toastLabel!.classList.add('show'));
 
   if (toastHideTimer !== undefined) clearTimeout(toastHideTimer);
-  toastHideTimer = setTimeout(() => toastLabel?.classList.remove('show'), TOAST_DURATION_MS);
+  if (state !== 'processing') {
+    toastHideTimer = setTimeout(() => toastLabel?.classList.remove('show'), TOAST_DURATION_MS);
+  }
 }
 
 chrome.runtime.onMessage.addListener((msg: unknown) => {
   const m = msg as ToastMessage | undefined;
-  if (m && m.type === 'collector-toast') showToast(m.ok);
+  if (m && m.type === 'collector-toast') showToast(m.state);
 });

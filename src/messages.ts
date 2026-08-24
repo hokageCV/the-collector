@@ -48,5 +48,5 @@ export interface ProgressMessage {
 
 export interface ToastMessage {
   type: 'collector-toast';
-  ok: boolean;
+  state: 'processing' | 'success' | 'error';
 }

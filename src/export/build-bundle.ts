@@ -45,7 +45,7 @@ export async function buildBundle(): Promise<void> {
       const meta = `<p class="meta">Source: <a href="${escapeHtml(
         a.url,
       )}">${escapeHtml(a.url)}</a> — saved ${formatDate(a.saved_at)}</p>`;
-      return `<section id="${a.slug}">\n<h1>${escapeHtml(a.title)}</h1>\n${meta}\n${a.html}\n</section>`;
+      return `<section id="${a.slug}">\n<p class="article-boundary article-start"><strong>========== ARTICLE START ==========</strong></p>\n<h1>${escapeHtml(a.title)}</h1>\n${meta}\n${a.html}\n<p class="article-boundary article-end"><strong>=========== ARTICLE END ===========</strong></p>\n</section>`;
     })
     .join('\n');
 
@@ -86,16 +86,24 @@ ${themeCss}
   nav li { margin: 0.35em 0; }
   nav a { color: var(--color-c-text); text-decoration: none; }
   nav a:hover { color: var(--color-c-accent-subtle); }
-  section { margin-bottom: 4.5em; }
-  section + section { padding-top: 3em; position: relative; }
-  section + section::before {
-    content: "\\2726";
-    display: block;
-    margin-bottom: 2.5em;
+  section {
+    margin-bottom: 4.5em;
+    break-before: page;
+    page-break-before: always;
+  }
+  section:first-of-type {
+    break-before: auto;
+    page-break-before: auto;
+  }
+  .article-boundary {
+    margin: 0 0 2.5em;
     text-align: center;
-    font-size: 0.8em;
+    font-size: 0.75em;
+    letter-spacing: 0.08em;
     color: var(--color-c-accent);
-    opacity: 0.6;
+  }
+  .article-end {
+    margin: 3.5em 0 0;
   }
   section > h1 {
     margin: 0 0 0.6em;

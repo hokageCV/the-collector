@@ -164,7 +164,14 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        cursor: default;
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      #saved .name:hover,
+      #saved .name:focus-visible {
+        color: var(--color-c-accent);
+        text-decoration: underline;
       }
       #saved .del {
         flex: none;

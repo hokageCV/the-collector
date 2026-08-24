@@ -24,8 +24,11 @@ async function renderSaved(): Promise<void> {
   for (const a of articles) {
     const li = document.createElement('li');
 
-    const name = document.createElement('span');
+    const name = document.createElement('a');
     name.className = 'name';
+    name.href = a.url;
+    name.target = '_blank';
+    name.rel = 'noopener noreferrer';
     name.textContent = a.title;
     name.title = a.url;
 

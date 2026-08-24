@@ -4,10 +4,15 @@ import type { ProgressMessage, SaveArticleResponse } from '../messages';
 
 const saveButton = document.getElementById('save') as HTMLButtonElement | null;
 const statusEl = document.getElementById('status') as HTMLParagraphElement | null;
-const exportBtn = document.getElementById('export') as HTMLButtonElement | null;
-const exportClearBtn = document.getElementById('export-clear') as HTMLButtonElement | null;
+const exportActionBtn = document.getElementById('export-action') as HTMLButtonElement | null;
+const exportMenuBtn = document.getElementById('export-menu') as HTMLButtonElement | null;
+const exportMenu = document.getElementById('export-menu-list') as HTMLDivElement | null;
 const savedEl = document.getElementById('saved') as HTMLUListElement | null;
 const emptyEl = document.getElementById('empty') as HTMLParagraphElement | null;
+
+type ExportAction = 'clear' | 'export';
+
+let exportAction: ExportAction = 'clear';
 
 function setStatus(text: string, kind: 'info' | 'error' | 'success' = 'info'): void {
   if (!statusEl) return;
@@ -17,10 +22,10 @@ function setStatus(text: string, kind: 'info' | 'error' | 'success' = 'info'): v
 
 async function renderSaved(): Promise<void> {
   await syncSaveButton();
-  if (!savedEl || !emptyEl || !exportBtn || !exportClearBtn) return;
+  if (!savedEl || !emptyEl || !exportActionBtn || !exportMenuBtn) return;
   const articles = await listArticles();
-  exportBtn.disabled = articles.length === 0;
-  exportClearBtn.disabled = articles.length === 0;
+  exportActionBtn.disabled = articles.length === 0;
+  exportMenuBtn.disabled = articles.length === 0;
   emptyEl.hidden = articles.length > 0;
   savedEl.innerHTML = '';
   for (const a of articles) {
@@ -102,22 +107,67 @@ saveButton?.addEventListener('click', () => {
   onSave().catch((err) => setStatus(`Error: ${String(err)}`, 'error'));
 });
 
-exportBtn?.addEventListener('click', () => {
-  buildBundle().catch((err) => setStatus(`Export failed: ${String(err)}`, 'error'));
-});
+function setExportAction(action: ExportAction): void {
+  exportAction = action;
+  if (exportActionBtn) exportActionBtn.textContent = action === 'clear' ? 'Export & clear' : 'Export';
+  exportMenu?.querySelectorAll<HTMLButtonElement>('[data-export-action]').forEach((item) => {
+    item.setAttribute('aria-checked', String(item.dataset.exportAction === action));
+  });
+  void chrome.storage.local.set({ exportAction: action });
+}
 
-exportClearBtn?.addEventListener('click', async () => {
-  exportBtn!.disabled = true;
-  exportClearBtn.disabled = true;
+function closeExportMenu(): void {
+  if (!exportMenu || !exportMenuBtn) return;
+  exportMenu.hidden = true;
+  exportMenuBtn.setAttribute('aria-expanded', 'false');
+}
+
+async function runExport(): Promise<void> {
+  if (!exportActionBtn || !exportMenuBtn) return;
+  exportActionBtn.disabled = true;
+  exportMenuBtn.disabled = true;
   try {
     await buildBundle();
-    await clearArticles();
-    setStatus('Exported and cleared the collection.', 'success');
+    if (exportAction === 'clear') {
+      await clearArticles();
+      setStatus('Exported and cleared the collection.', 'success');
+    } else {
+      setStatus('Exported the collection.', 'success');
+    }
     await renderSaved();
   } catch (err) {
     setStatus(`Export failed: ${String(err)}`, 'error');
     await renderSaved();
   }
+}
+
+exportActionBtn?.addEventListener('click', () => void runExport());
+
+exportMenuBtn?.addEventListener('click', () => {
+  if (!exportMenu || !exportMenuBtn) return;
+  const willOpen = exportMenu.hidden;
+  exportMenu.hidden = !willOpen;
+  exportMenuBtn.setAttribute('aria-expanded', String(willOpen));
+});
+
+exportMenu?.addEventListener('click', (event) => {
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-export-action]');
+  if (!target) return;
+  setExportAction(target.dataset.exportAction as ExportAction);
+  closeExportMenu();
+});
+
+document.addEventListener('click', (event) => {
+  const target = event.target as Node;
+  if (exportMenu && !exportMenu.hidden && !exportMenu.parentElement?.contains(target)) closeExportMenu();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeExportMenu();
+});
+
+void chrome.storage.local.get('exportAction').then(({ exportAction: savedAction }) => {
+  if (savedAction === 'clear' || savedAction === 'export') setExportAction(savedAction);
 });
 
 void renderSaved();

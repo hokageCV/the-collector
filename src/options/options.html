@@ -47,12 +47,12 @@
         font-size: 13.5px;
         color: var(--color-c-text-muted);
       }
-      .export-actions {
+      .split-action {
+        position: relative;
         display: flex;
         flex: none;
-        gap: 8px;
       }
-      #export, #export-clear {
+      #export-action, #export-menu, .export-menu button {
         flex: none;
         padding: 11px 20px;
         font-family: var(--font-ui);
@@ -69,19 +69,47 @@
           0 8px 20px -10px rgba(255, 152, 0, 0.55);
         transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
       }
-      #export:hover:not(:disabled), #export-clear:hover:not(:disabled) {
+      #export-action {
+        border-radius: 999px 0 0 999px;
+      }
+      #export-menu {
+        width: 38px;
+        padding: 0;
+        border-left: 1px solid rgba(28, 24, 21, 0.16);
+        border-radius: 0 999px 999px 0;
+        font-size: 17px;
+        line-height: 1;
+      }
+      #export-action:hover:not(:disabled), #export-menu:hover:not(:disabled) {
         filter: brightness(1.06);
         transform: translateY(-1px);
         box-shadow:
           inset 0 1px 0 rgba(255, 255, 255, 0.28),
           0 12px 26px -10px rgba(255, 152, 0, 0.6);
       }
-      #export:active:not(:disabled), #export-clear:active:not(:disabled) { transform: translateY(0); filter: brightness(0.97); }
-      #export:disabled, #export-clear:disabled { opacity: 0.45; cursor: default; }
-      #export-clear {
-        color: var(--color-c-primary);
-        background: var(--color-c-surface-muted);
-        box-shadow: none;
+      #export-action:active:not(:disabled), #export-menu:active:not(:disabled) { transform: translateY(0); filter: brightness(0.97); }
+      #export-action:disabled, #export-menu:disabled { opacity: 0.45; cursor: default; }
+      .export-menu {
+        position: absolute;
+        z-index: 1;
+        top: calc(100% + 8px);
+        right: 0;
+        display: grid;
+        min-width: 174px;
+        padding: 5px;
+        background: var(--color-c-surface);
+        border: 1px solid var(--color-c-border);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lift);
+      }
+      .export-menu[hidden] { display: none; }
+      .export-menu button {
+        padding: 9px 11px;
+        border-radius: 8px;
+        text-align: left;
+      }
+      .export-menu button:hover { background: var(--color-c-surface-muted); }
+      .export-menu button[aria-checked='true'] { color: var(--color-c-accent); }
       }
       #empty {
         padding: 56px 0;
@@ -182,9 +210,13 @@
         <h1>Saved Articles</h1>
         <p class="lede">Your local collection, ready for Calibre.</p>
       </div>
-      <div class="export-actions">
-        <button id="export" disabled>Export bundle</button>
-        <button id="export-clear" disabled>Export &amp; clear</button>
+      <div class="split-action">
+        <button id="export-action" disabled>Export &amp; clear</button>
+        <button id="export-menu" aria-label="Choose export action" aria-expanded="false" aria-controls="export-menu-list" disabled>⌄</button>
+        <div id="export-menu-list" class="export-menu" role="menu" hidden>
+          <button type="button" role="menuitemradio" data-export-action="clear" aria-checked="true">Export &amp; clear</button>
+          <button type="button" role="menuitemradio" data-export-action="export" aria-checked="false">Export</button>
+        </div>
       </div>
     </header>
     <p id="empty">Nothing collected yet.</p>

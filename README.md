@@ -24,7 +24,12 @@ Export the combined bundle from the Options page, then — with
 [Calibre](https://calibre-ebook.com/) installed (`ebook-convert` on PATH):
 
 ```bash
-unzip the-collector-export.zip -d export/ && cd export/ && DT=$(date '+%Y-%m-%d_%H-%M') && ebook-convert combined.html "../reading_list_${DT}.azw3" --title "My Reading List $(date '+%Y-%m-%d %H:%M')" --authors "Various" && cd .. && rm -rf export/ the-collector-export.zip
+unzip the-collector-export.zip -d export/ && cd export/ \
+  && DT=$(date '+%Y-%m-%d_%H-%M') \
+  && ebook-convert combined.html "../reading_list_${DT}.azw3" \
+    --title "My Reading List $(date '+%Y-%m-%d %H:%M')" \
+    --authors "Various" \
+  && cd .. && rm -rf export/ the-collector-export.zip
 ```
 
 Produces a timestamped `reading_list_<date>.azw3` next to the zip, then cleans
@@ -63,4 +68,3 @@ document.querySelector('#my-diagram').setAttribute('data-collector-capture', '')
 - **Single state**: only the widget's current/initial render is captured, not
   hover or other interactive states.
 - Save time scales with widget count (captures run serially, ~0.5s each).
-

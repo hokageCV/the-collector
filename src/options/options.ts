@@ -2,11 +2,14 @@ import { clearArticles, listArticles, deleteArticle, updateOrder, type ArticleRe
 import { buildBundle } from '../export/build-bundle';
 
 const listEl = document.getElementById('list') as HTMLUListElement;
-const exportBtn = document.getElementById('export') as HTMLButtonElement;
-const exportClearBtn = document.getElementById('export-clear') as HTMLButtonElement;
+const exportActionBtn = document.getElementById('export-action') as HTMLButtonElement;
+const exportMenuBtn = document.getElementById('export-menu') as HTMLButtonElement;
+const exportMenu = document.getElementById('export-menu-list') as HTMLDivElement;
 const emptyEl = document.getElementById('empty') as HTMLParagraphElement;
 
 let dragId: string | null = null;
+type ExportAction = 'clear' | 'export';
+let exportAction: ExportAction = 'clear';
 
 function renderItem(a: ArticleRecord): HTMLLIElement {
   const li = document.createElement('li');
@@ -89,31 +92,68 @@ async function render(): Promise<void> {
   listEl.innerHTML = '';
   if (articles.length === 0) {
     emptyEl.hidden = false;
-    exportBtn.disabled = true;
-    exportClearBtn.disabled = true;
+    exportActionBtn.disabled = true;
+    exportMenuBtn.disabled = true;
     return;
   }
   emptyEl.hidden = true;
-  exportBtn.disabled = false;
-  exportClearBtn.disabled = false;
+  exportActionBtn.disabled = false;
+  exportMenuBtn.disabled = false;
   for (const a of articles) listEl.appendChild(renderItem(a));
 }
 
-exportBtn.addEventListener('click', () => {
-  buildBundle().catch((err) => alert(`Export failed: ${String(err)}`));
-});
+function setExportAction(action: ExportAction): void {
+  exportAction = action;
+  exportActionBtn.textContent = action === 'clear' ? 'Export & clear' : 'Export';
+  exportMenu.querySelectorAll<HTMLButtonElement>('[data-export-action]').forEach((item) => {
+    item.setAttribute('aria-checked', String(item.dataset.exportAction === action));
+  });
+  void chrome.storage.local.set({ exportAction: action });
+}
 
-exportClearBtn.addEventListener('click', async () => {
-  exportBtn.disabled = true;
-  exportClearBtn.disabled = true;
+function closeExportMenu(): void {
+  exportMenu.hidden = true;
+  exportMenuBtn.setAttribute('aria-expanded', 'false');
+}
+
+async function runExport(): Promise<void> {
+  exportActionBtn.disabled = true;
+  exportMenuBtn.disabled = true;
   try {
     await buildBundle();
-    await clearArticles();
+    if (exportAction === 'clear') await clearArticles();
     await render();
   } catch (err) {
     alert(`Export failed: ${String(err)}`);
     await render();
   }
+}
+
+exportActionBtn.addEventListener('click', () => void runExport());
+
+exportMenuBtn.addEventListener('click', () => {
+  const willOpen = exportMenu.hidden;
+  exportMenu.hidden = !willOpen;
+  exportMenuBtn.setAttribute('aria-expanded', String(willOpen));
+});
+
+exportMenu.addEventListener('click', (event) => {
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-export-action]');
+  if (!target) return;
+  setExportAction(target.dataset.exportAction as ExportAction);
+  closeExportMenu();
+});
+
+document.addEventListener('click', (event) => {
+  if (!exportMenu.hidden && !exportMenu.parentElement?.contains(event.target as Node)) closeExportMenu();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeExportMenu();
+});
+
+void chrome.storage.local.get('exportAction').then(({ exportAction: savedAction }) => {
+  if (savedAction === 'clear' || savedAction === 'export') setExportAction(savedAction);
 });
 
 void render();

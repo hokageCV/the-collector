@@ -178,6 +178,6 @@ ${sections}
   const zipped = zipSync(files, { level: 6 });
   const blob = new Blob([zipped], { type: 'application/zip' });
   const url = URL.createObjectURL(blob);
-  await chrome.downloads.download({ url, filename: 'the-collector-export.zip', saveAs: true });
+  await chrome.downloads.download({ url, filename: 'the-collector-export.zip', saveAs: false });
   URL.revokeObjectURL(url);
 }

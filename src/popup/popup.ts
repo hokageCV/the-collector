@@ -1,10 +1,11 @@
-import { getArticleByUrl, listArticles, deleteArticle } from '../db/db';
+import { clearArticles, getArticleByUrl, listArticles, deleteArticle } from '../db/db';
 import { buildBundle } from '../export/build-bundle';
 import type { ProgressMessage, SaveArticleResponse } from '../messages';
 
 const saveButton = document.getElementById('save') as HTMLButtonElement | null;
 const statusEl = document.getElementById('status') as HTMLParagraphElement | null;
 const exportBtn = document.getElementById('export') as HTMLButtonElement | null;
+const exportClearBtn = document.getElementById('export-clear') as HTMLButtonElement | null;
 const savedEl = document.getElementById('saved') as HTMLUListElement | null;
 const emptyEl = document.getElementById('empty') as HTMLParagraphElement | null;
 
@@ -16,9 +17,10 @@ function setStatus(text: string, kind: 'info' | 'error' | 'success' = 'info'): v
 
 async function renderSaved(): Promise<void> {
   await syncSaveButton();
-  if (!savedEl || !emptyEl || !exportBtn) return;
+  if (!savedEl || !emptyEl || !exportBtn || !exportClearBtn) return;
   const articles = await listArticles();
   exportBtn.disabled = articles.length === 0;
+  exportClearBtn.disabled = articles.length === 0;
   emptyEl.hidden = articles.length > 0;
   savedEl.innerHTML = '';
   for (const a of articles) {
@@ -102,6 +104,20 @@ saveButton?.addEventListener('click', () => {
 
 exportBtn?.addEventListener('click', () => {
   buildBundle().catch((err) => setStatus(`Export failed: ${String(err)}`, 'error'));
+});
+
+exportClearBtn?.addEventListener('click', async () => {
+  exportBtn!.disabled = true;
+  exportClearBtn.disabled = true;
+  try {
+    await buildBundle();
+    await clearArticles();
+    setStatus('Exported and cleared the collection.', 'success');
+    await renderSaved();
+  } catch (err) {
+    setStatus(`Export failed: ${String(err)}`, 'error');
+    await renderSaved();
+  }
 });
 
 void renderSaved();

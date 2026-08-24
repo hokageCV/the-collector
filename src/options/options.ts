@@ -1,8 +1,9 @@
-import { listArticles, deleteArticle, updateOrder, type ArticleRecord } from '../db/db';
+import { clearArticles, listArticles, deleteArticle, updateOrder, type ArticleRecord } from '../db/db';
 import { buildBundle } from '../export/build-bundle';
 
 const listEl = document.getElementById('list') as HTMLUListElement;
 const exportBtn = document.getElementById('export') as HTMLButtonElement;
+const exportClearBtn = document.getElementById('export-clear') as HTMLButtonElement;
 const emptyEl = document.getElementById('empty') as HTMLParagraphElement;
 
 let dragId: string | null = null;
@@ -89,15 +90,30 @@ async function render(): Promise<void> {
   if (articles.length === 0) {
     emptyEl.hidden = false;
     exportBtn.disabled = true;
+    exportClearBtn.disabled = true;
     return;
   }
   emptyEl.hidden = true;
   exportBtn.disabled = false;
+  exportClearBtn.disabled = false;
   for (const a of articles) listEl.appendChild(renderItem(a));
 }
 
 exportBtn.addEventListener('click', () => {
   buildBundle().catch((err) => alert(`Export failed: ${String(err)}`));
+});
+
+exportClearBtn.addEventListener('click', async () => {
+  exportBtn.disabled = true;
+  exportClearBtn.disabled = true;
+  try {
+    await buildBundle();
+    await clearArticles();
+    await render();
+  } catch (err) {
+    alert(`Export failed: ${String(err)}`);
+    await render();
+  }
 });
 
 void render();

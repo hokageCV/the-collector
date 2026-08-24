@@ -124,6 +124,13 @@ export async function deleteArticle(id: string): Promise<void> {
   });
 }
 
+export async function clearArticles(): Promise<void> {
+  await runTx([ARTICLES, IMAGES], 'readwrite', (tx) => {
+    tx.objectStore(ARTICLES).clear();
+    tx.objectStore(IMAGES).clear();
+  });
+}
+
 export function saveImage(image: ImageRecord): Promise<IDBValidKey> {
   return runTx([IMAGES], 'readwrite', (tx) => {
     return reqToPromise(tx.objectStore(IMAGES).put(image));

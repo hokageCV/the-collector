@@ -32,6 +32,34 @@ function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
+async function waitForDownloadCompletion(id: number): Promise<void> {
+  const item = (await chrome.downloads.search({ id }))[0];
+  if (!item) throw new Error('Export download was removed');
+  if (item.state === 'complete') return;
+  if (item.state === 'interrupted') throw new Error('Export download was cancelled or interrupted');
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      chrome.downloads.onChanged.removeListener(onChanged);
+      reject(new Error('Export download timed out'));
+    }, 60_000);
+
+    function onChanged(delta: chrome.downloads.DownloadDelta): void {
+      if (delta.id !== id || !delta.state) return;
+      if (delta.state.current === 'complete') {
+        clearTimeout(timeoutId);
+        chrome.downloads.onChanged.removeListener(onChanged);
+        resolve();
+      } else if (delta.state.current === 'interrupted') {
+        clearTimeout(timeoutId);
+        chrome.downloads.onChanged.removeListener(onChanged);
+        reject(new Error('Export download was cancelled or interrupted'));
+      }
+    }
+
+    chrome.downloads.onChanged.addListener(onChanged);
+  });
+}
+
 export async function buildBundle(): Promise<void> {
   const articles = await listArticles();
   if (articles.length === 0) throw new Error('No articles to export');
@@ -178,6 +206,10 @@ ${sections}
   const zipped = zipSync(files, { level: 6 });
   const blob = new Blob([zipped], { type: 'application/zip' });
   const url = URL.createObjectURL(blob);
-  await chrome.downloads.download({ url, filename: 'the-collector-export.zip', saveAs: false });
-  URL.revokeObjectURL(url);
+  try {
+    const id = await chrome.downloads.download({ url, filename: 'the-collector-export.zip', saveAs: false });
+    await waitForDownloadCompletion(id);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }

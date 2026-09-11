@@ -1,7 +1,6 @@
-import { clearArticles, getArticleByUrl, listArticles, deleteArticle } from '../db/db';
-import { buildBundle } from '../export/build-bundle';
-import type { ProgressMessage, SaveArticleResponse } from '../messages';
-
+import { getArticleByUrl, listArticles, deleteArticle } from '../db/db';
+import { startBundleDownload } from '../export/build-bundle';
+import type { ExportConvertResponse, ExportMode, ProgressMessage, SaveArticleResponse } from '../messages';
 const saveButton = document.getElementById('save') as HTMLButtonElement | null;
 const statusEl = document.getElementById('status') as HTMLParagraphElement | null;
 const exportActionBtn = document.getElementById('export-action') as HTMLButtonElement | null;
@@ -10,7 +9,7 @@ const exportMenu = document.getElementById('export-menu-list') as HTMLDivElement
 const savedEl = document.getElementById('saved') as HTMLUListElement | null;
 const emptyEl = document.getElementById('empty') as HTMLParagraphElement | null;
 
-type ExportAction = 'clear' | 'export';
+type ExportAction = ExportMode;
 
 let exportAction: ExportAction = 'clear';
 
@@ -122,21 +121,40 @@ function closeExportMenu(): void {
   exportMenuBtn.setAttribute('aria-expanded', 'false');
 }
 
+function exportToBackground(downloadId: number, mode: ExportMode): Promise<ExportConvertResponse> {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: 'export-convert', downloadId, mode }, (resp: ExportConvertResponse) => {
+      resolve(resp ?? { ok: false, message: chrome.runtime.lastError?.message ?? 'no response' });
+    });
+  });
+}
+
 async function runExport(): Promise<void> {
   if (!exportActionBtn || !exportMenuBtn) return;
   exportActionBtn.disabled = true;
   exportMenuBtn.disabled = true;
+  // Only the download start needs this page; the worker owns everything after,
+  // so closing this popup mid-export is safe.
+  setStatus('Starting export…');
+  let revokeUrl: (() => void) | null = null;
   try {
-    await buildBundle();
-    if (exportAction === 'clear') {
-      await clearArticles();
-      setStatus('Exported and cleared the collection.', 'success');
+    const started = await startBundleDownload();
+    revokeUrl = started.revokeUrl;
+    const res = await exportToBackground(started.downloadId, exportAction);
+    if (res.ok) {
+      const name = res.outputPath?.split('/').pop() ?? res.outputPath ?? '';
+      const suffix = res.warning ? ` ${res.warning}` : '';
+      setStatus(
+        res.cleared ? `Ready: ${name} (collection cleared).${suffix}` : `Ready: ${name}${suffix}`,
+        'success',
+      );
     } else {
-      setStatus('Exported the collection.', 'success');
+      setStatus(`Export failed: ${res.message ?? 'unknown error'}`, 'error');
     }
-    await renderSaved();
   } catch (err) {
     setStatus(`Export failed: ${String(err)}`, 'error');
+  } finally {
+    revokeUrl?.();
     await renderSaved();
   }
 }

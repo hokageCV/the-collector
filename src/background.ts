@@ -1,12 +1,18 @@
 import {
+  clearArticles,
   getArticleByUrl,
   listArticles,
   saveArticle,
   saveImage,
   type ArticleRecord,
 } from './db/db';
+import { getDownloadPath, waitForDownloadCompletion } from './export/build-bundle';
+import { convertViaNativeHost } from './native/convert';
 import type {
   DetectResponse,
+  ExportConvertRequest,
+  ExportConvertResponse,
+  ExportMode,
   ExtractResponse,
   ProgressMessage,
   SaveArticleRequest,
@@ -336,8 +342,54 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       .catch((err) => sendResponse({ ok: false, reason: String(err) }));
     return true;
   }
+  if (msg && msg.type === 'export-convert') {
+    const req = msg as ExportConvertRequest;
+    handleExportConvert(req.downloadId, req.mode)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ ok: false, message: String(err) } satisfies ExportConvertResponse));
+    return true;
+  }
   return false;
 });
+
+// The convert+cleanup half of the export pipeline lives here (not in
+// popup/options pages) so closing the popup mid-export cannot kill it. The
+// page only builds the ZIP bytes and starts the browser download — both need
+// page context (URL.createObjectURL doesn't exist in workers) — then hands
+// the download id over. Everything from the wait onward is browser-level or
+// worker-safe.
+let exportInFlight = false;
+
+async function handleExportConvert(downloadId: number, mode: ExportMode): Promise<ExportConvertResponse> {
+  if (exportInFlight) return { ok: false, message: 'Export already running.' };
+  exportInFlight = true;
+  try {
+    reportProgress('Downloading…');
+    await waitForDownloadCompletion(downloadId);
+    const zipPath = await getDownloadPath(downloadId);
+    reportProgress('Converting…');
+    const result = await convertViaNativeHost(zipPath);
+    if (!result.ok) {
+      flashBadge(false);
+      return { ok: false, message: `${result.message} The ZIP is kept in Downloads.` };
+    }
+    let cleared = false;
+    // Clear only after a verified successful conversion.
+    if (mode === 'clear') {
+      await clearArticles();
+      cleared = true;
+    }
+    flashBadge(true);
+    const name = result.outputPath.split('/').pop() ?? result.outputPath;
+    reportProgress(`Ready: ${name}`);
+    return { ok: true, outputPath: result.outputPath, cleared, warning: result.warning };
+  } catch (err) {
+    flashBadge(false);
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  } finally {
+    exportInFlight = false;
+  }
+}
 
 function flashBadge(ok: boolean): void {
   chrome.action.setBadgeText({ text: ok ? '✓' : '!' });

@@ -1,14 +1,35 @@
-import { clearArticles, listArticles, deleteArticle, updateOrder, type ArticleRecord } from '../db/db';
-import { buildBundle } from '../export/build-bundle';
+import { listArticles, deleteArticle, updateOrder, type ArticleRecord } from '../db/db';
+import { startBundleDownload } from '../export/build-bundle';
+import type { ExportConvertResponse, ExportMode, ProgressMessage } from '../messages';
 
 const listEl = document.getElementById('list') as HTMLUListElement;
 const exportActionBtn = document.getElementById('export-action') as HTMLButtonElement;
 const exportMenuBtn = document.getElementById('export-menu') as HTMLButtonElement;
 const exportMenu = document.getElementById('export-menu-list') as HTMLDivElement;
 const emptyEl = document.getElementById('empty') as HTMLParagraphElement;
+const statusEl = document.getElementById('status') as HTMLParagraphElement | null;
+
+function setStatus(text: string): void {
+  if (statusEl) statusEl.textContent = text;
+}
+
+// The service worker reports pipeline progress; surface it in the status line.
+chrome.runtime.onMessage.addListener((msg: ProgressMessage) => {
+  if (msg && msg.type === 'collector-progress') {
+    setStatus(msg.text);
+  }
+});
+
+function exportToBackground(downloadId: number, mode: ExportMode): Promise<ExportConvertResponse> {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: 'export-convert', downloadId, mode }, (resp: ExportConvertResponse) => {
+      resolve(resp ?? { ok: false, message: chrome.runtime.lastError?.message ?? 'no response' });
+    });
+  });
+}
 
 let dragId: string | null = null;
-type ExportAction = 'clear' | 'export';
+type ExportAction = ExportMode;
 let exportAction: ExportAction = 'clear';
 
 function renderItem(a: ArticleRecord): HTMLLIElement {
@@ -119,12 +140,29 @@ function closeExportMenu(): void {
 async function runExport(): Promise<void> {
   exportActionBtn.disabled = true;
   exportMenuBtn.disabled = true;
+  // Only the download start needs this page; the worker owns everything after.
+  setStatus('Starting export…');
+  let revokeUrl: (() => void) | null = null;
   try {
-    await buildBundle();
-    if (exportAction === 'clear') await clearArticles();
-    await render();
+    const started = await startBundleDownload();
+    revokeUrl = started.revokeUrl;
+    const res = await exportToBackground(started.downloadId, exportAction);
+    if (res.ok) {
+      const name = res.outputPath?.split('/').pop() ?? res.outputPath ?? '';
+      const suffix = res.warning ? ` ${res.warning}` : '';
+      // The worker clears the collection only after successful conversion.
+      setStatus(res.cleared ? `Ready: ${name} (collection cleared).${suffix}` : `Ready: ${name}${suffix}`);
+    } else {
+      const message = `Export failed: ${res.message ?? 'unknown error'}`;
+      setStatus(message);
+      alert(message);
+    }
   } catch (err) {
-    alert(`Export failed: ${String(err)}`);
+    const message = `Export failed: ${String(err)}`;
+    setStatus(message);
+    alert(message);
+  } finally {
+    revokeUrl?.();
     await render();
   }
 }

@@ -9,7 +9,7 @@
     "128": "icons/icon-128.png"
   },
   "description": "Extract, sanitize, and store blog articles locally; export an HTML+images bundle for Calibre.",
-  "permissions": ["activeTab", "scripting", "storage", "downloads"],
+  "permissions": ["activeTab", "scripting", "storage", "downloads", "nativeMessaging"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",

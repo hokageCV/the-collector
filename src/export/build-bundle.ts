@@ -32,7 +32,7 @@ function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
-async function waitForDownloadCompletion(id: number): Promise<void> {
+export async function waitForDownloadCompletion(id: number): Promise<void> {
   const item = (await chrome.downloads.search({ id }))[0];
   if (!item) throw new Error('Export download was removed');
   if (item.state === 'complete') return;
@@ -60,7 +60,14 @@ async function waitForDownloadCompletion(id: number): Promise<void> {
   });
 }
 
-export async function buildBundle(): Promise<void> {
+export async function getDownloadPath(id: number): Promise<string> {
+  const [item] = await chrome.downloads.search({ id });
+  if (!item?.filename) throw new Error('Could not locate the downloaded ZIP on disk');
+  return item.filename;
+}
+
+/** Builds the export ZIP in memory. Runs in page or worker contexts. */
+export async function buildZipBlob(): Promise<Blob> {
   const articles = await listArticles();
   if (articles.length === 0) throw new Error('No articles to export');
 
@@ -204,12 +211,28 @@ ${sections}
   }
 
   const zipped = zipSync(files, { level: 6 });
-  const blob = new Blob([zipped], { type: 'application/zip' });
+  return new Blob([zipped], { type: 'application/zip' });
+}
+
+/**
+ * Page-context entry point (URL.createObjectURL is unavailable in the service
+ * worker). Builds the ZIP, starts the browser download, and returns the
+ * download id plus a revoker. The caller hands the id to the service worker,
+ * which waits for completion, converts, and cleans up — so this page may
+ * close (e.g. popup auto-close) right after this resolves.
+ */
+export async function startBundleDownload(): Promise<{ downloadId: number; revokeUrl: () => void }> {
+  const blob = await buildZipBlob();
   const url = URL.createObjectURL(blob);
   try {
-    const id = await chrome.downloads.download({ url, filename: 'the-collector-export.zip', saveAs: false });
-    await waitForDownloadCompletion(id);
-  } finally {
+    const downloadId = await chrome.downloads.download({
+      url,
+      filename: 'the-collector-export.zip',
+      saveAs: false,
+    });
+    return { downloadId, revokeUrl: () => URL.revokeObjectURL(url) };
+  } catch (err) {
     URL.revokeObjectURL(url);
+    throw err;
   }
 }

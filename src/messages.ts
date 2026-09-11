@@ -50,3 +50,20 @@ export interface ToastMessage {
   type: 'collector-toast';
   state: 'processing' | 'success' | 'error';
 }
+
+export type ExportMode = 'clear' | 'export';
+
+export interface ExportConvertRequest {
+  type: 'export-convert';
+  /** chrome.downloads id started by the page (blob download survives page death). */
+  downloadId: number;
+  mode: ExportMode;
+}
+
+export interface ExportConvertResponse {
+  ok: boolean;
+  message?: string;
+  outputPath?: string;
+  cleared?: boolean;
+  warning?: string;
+}

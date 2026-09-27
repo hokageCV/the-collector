@@ -1,4 +1,5 @@
-import { getArticleByUrl, listArticles, deleteArticle } from '../db/db';
+import Sortable from 'sortablejs';
+import { getArticleByUrl, listArticles, deleteArticle, updateOrder } from '../db/db';
 import { startBundleDownload } from '../export/build-bundle';
 import type { ExportConvertResponse, ExportMode, ProgressMessage, SaveArticleResponse } from '../messages';
 const saveButton = document.getElementById('save') as HTMLButtonElement | null;
@@ -29,6 +30,7 @@ async function renderSaved(): Promise<void> {
   savedEl.innerHTML = '';
   for (const a of articles) {
     const li = document.createElement('li');
+    li.dataset.id = a.id;
 
     const name = document.createElement('a');
     name.className = 'name';
@@ -37,6 +39,14 @@ async function renderSaved(): Promise<void> {
     name.rel = 'noopener noreferrer';
     name.textContent = a.title;
     name.title = a.url;
+    // Suppress the browser's native link-drag so only our reorder drag runs.
+    name.draggable = false;
+    name.addEventListener('keydown', (event) => {
+      if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+        event.preventDefault();
+        void moveArticle(a.id, event.key === 'ArrowUp' ? -1 : 1);
+      }
+    });
 
     const del = document.createElement('button');
     del.className = 'del';
@@ -50,6 +60,78 @@ async function renderSaved(): Promise<void> {
     li.append(name, del);
     savedEl.appendChild(li);
   }
+}
+
+// Drag-to-reorder via SortableJS. forceFallback is essential: the default
+// native HTML5 backend hands control to the OS, Chrome treats the popup as
+// blurred, and dismisses it mid-drag. The fallback backend is synthetic
+// (mouse/touch events), so the popup stays open, and it brings built-in
+// auto-scroll near the list edges.
+function currentDomOrder(): string[] {
+  if (!savedEl) return [];
+  return [...savedEl.querySelectorAll<HTMLLIElement>('li')]
+    .map((li) => li.dataset.id ?? '')
+    .filter((id) => id !== '');
+}
+
+// Persist a new order: renumber 0..n in the given sequence.
+async function persistOrder(idsInOrder: string[]): Promise<void> {
+  await updateOrder(idsInOrder.map((id, i) => ({ id, order_index: i })));
+}
+
+// After a real sort, swallow the click that mouseup would otherwise fire
+// (e.g. releasing over the title link must not open it). Time-bounded so a
+// stray armed listener can never eat a later legitimate click.
+function suppressNextClick(): void {
+  if (!savedEl) return;
+  const stop = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.clearTimeout(timer);
+  };
+  const timer = window.setTimeout(() => {
+    savedEl?.removeEventListener('click', stop, true);
+  }, 300);
+  savedEl.addEventListener('click', stop, { capture: true, once: true });
+}
+
+if (savedEl) {
+  Sortable.create(savedEl, {
+    animation: 150,
+    forceFallback: true,
+    fallbackClass: 'sort-fallback',
+    ghostClass: 'sort-ghost',
+    chosenClass: 'sort-chosen',
+    // Presses starting on the delete button are clicks, never drags.
+    filter: '.del',
+    preventOnFilter: true,
+    // Hold-to-drag on touch so the list still scrolls by swipe.
+    delay: 120,
+    delayOnTouchOnly: true,
+    scrollSensitivity: 28,
+    scrollSpeed: 6,
+    bubbleScroll: true,
+    onStart: () => document.body.classList.add('reordering'),
+    onEnd: (evt) => {
+      document.body.classList.remove('reordering');
+      if (evt.oldIndex === evt.newIndex) return;
+      suppressNextClick();
+      // Sortable already reordered the DOM; just persist (no re-render flicker).
+      void persistOrder(currentDomOrder());
+    },
+  });
+}
+
+async function moveArticle(id: string, dir: -1 | 1): Promise<void> {
+  const articles = await listArticles();
+  const from = articles.findIndex((a) => a.id === id);
+  const to = from + dir;
+  if (from === -1 || to < 0 || to >= articles.length) return;
+  const [moved] = articles.splice(from, 1);
+  articles.splice(to, 0, moved!);
+  await persistOrder(articles.map((a) => a.id));
+  await renderSaved();
+  savedEl?.querySelector<HTMLAnchorElement>(`li[data-id="${CSS.escape(id)}"] .name`)?.focus();
 }
 
 async function getActiveTab(): Promise<chrome.tabs.Tab | null> {

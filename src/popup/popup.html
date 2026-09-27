@@ -187,6 +187,17 @@
         animation: rise 0.22s ease backwards;
       }
       #saved li:hover { background: var(--color-c-surface-muted); }
+      #saved li { cursor: grab; }
+      #saved li:active { cursor: grabbing; }
+      #saved li.dragging,
+      #saved li.sort-chosen { background: var(--color-c-surface-muted); }
+      #saved li.sort-ghost { opacity: 0.35; }
+      .sort-fallback {
+        opacity: 0.92;
+        box-shadow: var(--shadow-lift);
+        pointer-events: none;
+      }
+      body.reordering, body.reordering a { user-select: none; }
       #saved li:nth-child(2) { animation-delay: 0.03s; }
       #saved li:nth-child(3) { animation-delay: 0.06s; }
       #saved li:nth-child(4) { animation-delay: 0.09s; }

@@ -65,6 +65,14 @@ function normalizeImages(doc: Document): void {
   }
 }
 
+function flattenCaptionLinks(doc: Document): void {
+  // Readability deletes any div with link density above 0.2. A caption like
+  // "Image credit: <a>imgflip</a>" pushes its media container over that line,
+  // taking the image with it. Unwrap the anchors first: the credit text stays,
+  // the URL is worthless in an ebook.
+  doc.querySelectorAll('figcaption a').forEach((a) => a.replaceWith(...a.childNodes));
+}
+
 function collectImageUrls(html: string): string[] {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
@@ -205,6 +213,7 @@ function extract(screenshots: Record<string, string> = {}): ExtractResponse {
     .forEach((e) => e.removeAttribute('data-collector-widget-id'));
 
   normalizeImages(cloned);
+  flattenCaptionLinks(cloned);
   flattenMath(cloned);
 
   const article = new Readability(cloned).parse();

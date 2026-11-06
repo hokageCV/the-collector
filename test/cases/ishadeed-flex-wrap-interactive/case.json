@@ -1,0 +1,42 @@
+{
+  "source": "https://ishadeed.com/article/flex-wrap-balance/",
+  "problems": [
+    "Interactive demos are never captured. The page has 14 buttons, 5 range sliders and 4 checkboxes, but every candidate scores 4 (controls +2, low text +2) against a threshold of 5. The +3 media bonus never fires: the demos are HTML/CSS boxes, not svg or canvas. Demos therefore export as dead text — the Channels demo collapses to a bare <ul>.",
+    "Widget capture cannot be exercised by this fixture: detection needs layout (getBoundingClientRect), so it is a live-only check. This case pins what extraction does when no screenshots are provided."
+  ],
+  "expect": {
+    "title": "Balancing flex items with flex-wrap: balance",
+    "images": [
+      "buffer-connect-section.DnkFKuHv_1DjELB.png",
+      "buffer-connect-section-2.DB_rzevx_Z6dFPq.png",
+      "coffee-3.jpg",
+      "coffee-11.jpg",
+      "coffee-3.jpg",
+      "coffee-11.jpg",
+      "course.C1rBodyU_Z2wjdo2.png"
+    ],
+    "headings": [
+      "Introduction",
+      "Solution 1: Container queries",
+      "Solution 2: using max-width with a conditional clamp",
+      "Solution 3: display contents",
+      "Solution 4: A flex item in between",
+      "Solution 5: Flex wrap balance",
+      "Flex line count",
+      "Navigation demo",
+      "Masonry layout with flex-line-count",
+      "Outro",
+      "Learn more about CSS layouts"
+    ],
+    "contains": [
+      "Oftentimes, when working with flexbox and wrapping is enabled",
+      "Solution 5: Flex wrap balance",
+      "Here is the demo:",
+      "flex-line-count"
+    ],
+    "notContains": [
+      "Table of contents",
+      "Subscribe"
+    ]
+  }
+}

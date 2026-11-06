@@ -8,7 +8,9 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "npm run build && node test/run.mjs",
+    "test:update": "npm run build && node test/run.mjs --update"
   },
   "dependencies": {
     "@mozilla/readability": "^0.5.0",
@@ -21,6 +23,7 @@
     "@types/node": "^22.20.1",
     "@types/sortablejs": "^1.15.9",
     "esbuild": "^0.23.0",
+    "jsdom": "^31.0.0",
     "typescript": "^5.5.0"
   }
 }

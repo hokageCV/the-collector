@@ -1,0 +1,34 @@
+{
+  "source": "https://timdenning.substack.com/p/you-need-to-be-more-afraid-of-wasting",
+  "problems": [
+    "Meme image missing from the export. Its caption is \"Image credit: <a>imgflip</a>\", which pushes the media container to a link density of 0.33; Readability deletes any div above 0.2.",
+    "All eight in-post headings missing. Substack classes them header-anchor-post, which matches Readability's unlikely-candidate regex (/header/) and is dropped before scoring."
+  ],
+  "expect": {
+    "title": "You need to be more afraid of wasting your life than embarrassing yourself.",
+    "images": [
+      "611a4e11-197e-4acd-93f7-d40002ebe413_1024x732.png",
+      "8d1450c9-9035-4dc8-9e24-467d07e6172b_1014x1025.jpeg"
+    ],
+    "headings": [
+      "The art of daily embarrassment",
+      "Your heroes are all embarrassing failures",
+      "One of the craziest acts of embarrassment you’ll ever see",
+      "The meme that changes everything",
+      "The hidden cost of avoiding embarrassment",
+      "Wasting your life is the nightmare you should be trying to avoid instead",
+      "The unconventional antidote to an embarrassing situation",
+      "If you want to succeed in life, you can’t give a f*ck about embarrassment."
+    ],
+    "contains": [
+      "People watch far less than you think.",
+      "This meme is my favorite of all time.",
+      "It shows you in a visual way what embarrassment actually is.",
+      "Image credit: imgflip"
+    ],
+    "notContains": [
+      "Restacks",
+      "Subscribe"
+    ]
+  }
+}

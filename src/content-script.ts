@@ -83,6 +83,29 @@ function stripHeadingClasses(doc: Document): void {
     .forEach((h) => h.removeAttribute('class'));
 }
 
+// Block-level tags, used to tell a paragraph boundary from an inline wrapper.
+const BLOCK_TAGS =
+  'address,article,aside,audio,blockquote,canvas,dd,details,dialog,div,dl,dt,' +
+  'fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,' +
+  'li,main,nav,ol,p,pre,section,table,ul,video';
+
+function flattenInlineDivs(doc: Document): void {
+  // A <div> inside a block that has no other block-level children cannot act as
+  // a paragraph boundary; it is an inline wrapper. x.com renders every link and
+  // every nested text run this way (React Native Web), and Readability treats
+  // the wrapper as its own block: it splits the surrounding sentence into
+  // sibling <p>s, then `_cleanConditionally` deletes the link-only div for
+  // link density 1.0. Short wrappers (<25 chars) also hit its "no commas, no
+  // headings, little text" rule. Unwrapping restores the original inline flow.
+  const divs = Array.from(doc.querySelectorAll('div')).reverse();
+  for (const div of divs) {
+    const parent = div.parentElement;
+    if (!parent || div.querySelector(BLOCK_TAGS)) continue;
+    if (Array.from(parent.children).some((c) => c !== div && c.matches(BLOCK_TAGS))) continue;
+    div.replaceWith(...Array.from(div.childNodes));
+  }
+}
+
 function collectImageUrls(html: string): string[] {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
@@ -225,6 +248,7 @@ function extract(screenshots: Record<string, string> = {}): ExtractResponse {
   normalizeImages(cloned);
   flattenCaptionLinks(cloned);
   stripHeadingClasses(cloned);
+  flattenInlineDivs(cloned);
   flattenMath(cloned);
 
   const article = new Readability(cloned).parse();

@@ -1,0 +1,43 @@
+{
+  "source": "https://x.com/addyosmani/status/2114604912520921136",
+  "problems": [
+    "Every inline link disappeared, text included. x.com (React Native Web) wraps each link in a <div> inside the paragraph, so Readability sees a block-level child: it splits the surrounding sentence into separate <p>s and then _cleanConditionally deletes the link-only div for link density 1.0. Lost here: \"guide to best practices\", \"verification process\", \"30,000\", \"Code Review for Claude Code\".",
+    "The bold pseudo-heading \"1.Pre-PR verification:\" disappeared. It is a plain div block of 22 characters, not an <h*>, so Readability drops it under its \"no commas, no headings, under 25 chars\" div rule. \"2. AI review on every pull request\" (32 chars) survives, which pins the threshold rather than a general bold-text problem.",
+    "This differs from the logged-out page: X serves SSR markup as clean <p> elements. The fixture is the <article> element from the authenticated DOM."
+  ],
+  "expect": {
+    "title": "\"How the Claude Code team does code review\"",
+    "images": [
+      "HVf9yKZbwAAQXG9",
+      "HVf-M9yawAAIxYF",
+      "HVf_D--bcAAPXY-",
+      "HVf_nM4aIAAKyCq",
+      "HVgAB3aaYAApPEZ",
+      "HVgAZymawAAx2IG"
+    ],
+    "headings": [
+      "Rethinking the goal of code review",
+      "Human time and attention",
+      "What's the journey of a change?",
+      "How we make the reviewer better",
+      "Humans in the loop",
+      "Team context",
+      "\"You land it, you own it\"",
+      "Changing course",
+      "How to implement",
+      "Where this is headed"
+    ],
+    "contains": [
+      "1.Pre-PR verification:",
+      "guide to best practices",
+      "Code Review for Claude Code",
+      "30,000",
+      "Each layer catches some bugs while missing others"
+    ],
+    "notContains": [
+      "Conversation",
+      "replies",
+      "Bookmark"
+    ]
+  }
+}

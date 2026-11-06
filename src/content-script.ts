@@ -73,6 +73,16 @@ function flattenCaptionLinks(doc: Document): void {
   doc.querySelectorAll('figcaption a').forEach((a) => a.replaceWith(...a.childNodes));
 }
 
+function stripHeadingClasses(doc: Document): void {
+  // Readability deletes any node whose class matches its "unlikely candidate"
+  // regex, and that regex includes /header/. Substack tags every in-post
+  // heading class="header-anchor-post", so all headings vanished before
+  // scoring. Classes are stripped from the output anyway.
+  doc
+    .querySelectorAll('h1, h2, h3, h4, h5, h6')
+    .forEach((h) => h.removeAttribute('class'));
+}
+
 function collectImageUrls(html: string): string[] {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
@@ -214,6 +224,7 @@ function extract(screenshots: Record<string, string> = {}): ExtractResponse {
 
   normalizeImages(cloned);
   flattenCaptionLinks(cloned);
+  stripHeadingClasses(cloned);
   flattenMath(cloned);
 
   const article = new Readability(cloned).parse();

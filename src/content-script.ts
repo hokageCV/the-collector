@@ -84,6 +84,8 @@ function stripHeadingClasses(doc: Document): void {
 }
 
 // Block-level tags, used to tell a paragraph boundary from an inline wrapper.
+// Phrasing content (span, a, b, code, img, …) is absent on purpose: the only
+// question here is whether removing a <div> would merge two paragraphs.
 const BLOCK_TAGS =
   'address,article,aside,audio,blockquote,canvas,dd,details,dialog,div,dl,dt,' +
   'fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,' +
@@ -97,12 +99,127 @@ function flattenInlineDivs(doc: Document): void {
   // sibling <p>s, then `_cleanConditionally` deletes the link-only div for
   // link density 1.0. Short wrappers (<25 chars) also hit its "no commas, no
   // headings, little text" rule. Unwrapping restores the original inline flow.
+  //
+  // The parent check is what keeps this safe: unwrapping a paragraph block that
+  // sits beside other paragraph blocks would merge them. Reverse order visits
+  // children before parents, so nested wrappers collapse in one pass.
   const divs = Array.from(doc.querySelectorAll('div')).reverse();
   for (const div of divs) {
     const parent = div.parentElement;
     if (!parent || div.querySelector(BLOCK_TAGS)) continue;
     if (Array.from(parent.children).some((c) => c !== div && c.matches(BLOCK_TAGS))) continue;
     div.replaceWith(...Array.from(div.childNodes));
+  }
+}
+
+// A fully bold block this short, without sentence punctuation, reads as a
+// label ("1.Pre-PR verification:", "Approval"), not prose. Anything longer or
+// ending in . ! ? is emphasis inside a sentence, and promoting it would invent
+// structure. 80 is a guard rail, not a precise cutoff: the labels in X's
+// longform posts top out around 50 characters.
+const MAX_BOLD_HEADING_CHARS = 80;
+
+function isBoldElement(el: Element): boolean {
+  if (el.tagName === 'B' || el.tagName === 'STRONG') return true;
+  // Inline style only: extraction runs on a DOM clone and never calls
+  // getComputedStyle, so class-based weights (Tailwind's font-bold, say) are
+  // invisible here. X writes an inline weight, which is the case we need.
+  const style = (el.getAttribute('style') ?? '').toLowerCase();
+  const match = style.match(/font-weight\s*:\s*([0-9]+|bold|bolder)/);
+  if (!match) return false;
+  // 600 is the CSS "semibold" boundary; bold/bolder are the keyword forms.
+  return match[1] === 'bold' || match[1] === 'bolder' || Number(match[1]) >= 600;
+}
+
+/**
+ * How much of the block's text is bold, counted in characters.
+ *
+ * Walks text nodes rather than summing <b>/<strong> lengths so nested markup
+ * (b > strong) is not counted twice. Whitespace-only nodes are ignored so
+ * indentation between tags cannot make a fully bold block look partially bold.
+ */
+function boldness(el: Element): { total: number; bold: number } {
+  const walker = el.ownerDocument.createTreeWalker(el, 4 /* NodeFilter.SHOW_TEXT */);
+  let total = 0;
+  let bold = 0;
+  let node = walker.nextNode();
+  while (node) {
+    const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (text) {
+      total += text.length;
+      let parent = node.parentElement;
+      let isBold = false;
+      while (parent && parent !== el) {
+        if (isBoldElement(parent)) {
+          isBold = true;
+          break;
+        }
+        parent = parent.parentElement;
+      }
+      if (isBold) bold += text.length;
+    }
+    node = walker.nextNode();
+  }
+  return { total, bold };
+}
+
+/**
+ * The article container on x.com, or null on every other site.
+ *
+ * This is the gate for the heading promotion below. It is keyed on markup
+ * rather than hostname because the DOM is what makes the promotion correct:
+ * twitter.com and the mobile site serve the same shapes. Two shapes exist:
+ *   - logged out: server-rendered [data-article-part="body"]
+ *   - logged in:  Draft.js read view, an <article> holding [data-block] nodes
+ * The read-view test id has changed before, so look for the draft blocks
+ * instead of a specific marker attribute.
+ */
+function xArticleRoot(doc: Document): Element | null {
+  const body = doc.querySelector('[data-article-part="body"]');
+  if (body) return body;
+  for (const article of doc.querySelectorAll('article')) {
+    if (article.querySelector('[data-block="true"]')) return article;
+  }
+  return null;
+}
+
+/**
+ * Turn X's fully bold section labels into real headings.
+ *
+ * Why: X longform authors write "1.Pre-PR verification:" as a bold paragraph,
+ * not an <h*>. Readability deletes any div block under 25 characters ("no
+ * commas, no headings, little text") and treats the rest as body copy, so the
+ * label either disappears or loses the article outline. Promoting it before
+ * parsing fixes both.
+ *
+ * Why only here: on a normal site a short fully bold paragraph is emphasis
+ * ("This cannot be undone"), and promoting it would render a warning sentence
+ * as a section heading. test/cases/bold-emphasis-not-heading pins that.
+ *
+ * The remaining filters keep the rule tight even on X:
+ *   - leaf block only          — never wrap over other structure
+ *   - every character bold     — a partially bold paragraph is prose
+ *   - no . ! ? at the end      — bold sentences are not labels
+ *   - skip captions/code/lists — those already carry their own semantics
+ *
+ * h3, not h2: X uses h2 for its own section headings; these labels sit under
+ * them. The new heading carries no attributes. Readability and DOMPurify strip
+ * them anyway, and copying the source class risks matching the /header/
+ * unlikely-candidate regex that stripHeadingClasses exists to work around.
+ */
+function promoteXArticleHeadings(doc: Document): void {
+  const root = xArticleRoot(doc);
+  if (!root) return;
+  for (const el of Array.from(root.querySelectorAll('p, div'))) {
+    if (el.querySelector(BLOCK_TAGS)) continue;
+    if (el.closest('figure, figcaption, pre, code, li')) continue;
+    const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (!text || text.length > MAX_BOLD_HEADING_CHARS || /[.!?]$/.test(text)) continue;
+    const { total, bold } = boldness(el);
+    if (!total || bold !== total) continue;
+    const heading = doc.createElement('h3');
+    heading.replaceChildren(...Array.from(el.childNodes));
+    el.replaceWith(heading);
   }
 }
 
@@ -249,6 +366,7 @@ function extract(screenshots: Record<string, string> = {}): ExtractResponse {
   flattenCaptionLinks(cloned);
   stripHeadingClasses(cloned);
   flattenInlineDivs(cloned);
+  promoteXArticleHeadings(cloned);
   flattenMath(cloned);
 
   const article = new Readability(cloned).parse();

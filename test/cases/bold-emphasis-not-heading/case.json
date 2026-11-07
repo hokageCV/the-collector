@@ -1,0 +1,16 @@
+{
+  "source": "https://example.com/deleting-a-workspace",
+  "problems": [
+    "Synthetic guard for the heading promotion. A short fully bold paragraph is emphasis, not a heading, on sites other than x.com. Before the pass was scoped, this line became an <h3> and entered the document outline.",
+    "Asserts that the only heading is the article's own <h1> and that the bold sentence stays in the body text."
+  ],
+  "expect": {
+    "title": "Deleting a workspace",
+    "images": [],
+    "headings": [],
+    "contains": [
+      "This cannot be undone"
+    ],
+    "notContains": []
+  }
+}

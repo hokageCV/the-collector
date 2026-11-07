@@ -3,7 +3,8 @@
   "problems": [
     "Every inline link disappeared, text included. x.com (React Native Web) wraps each link in a <div> inside the paragraph, so Readability sees a block-level child: it splits the surrounding sentence into separate <p>s and then _cleanConditionally deletes the link-only div for link density 1.0. Lost here: \"guide to best practices\", \"verification process\", \"30,000\", \"Code Review for Claude Code\".",
     "The bold pseudo-heading \"1.Pre-PR verification:\" disappeared. It is a plain div block of 22 characters, not an <h*>, so Readability drops it under its \"no commas, no headings, under 25 chars\" div rule. \"2. AI review on every pull request\" (32 chars) survives, which pins the threshold rather than a general bold-text problem.",
-    "This differs from the logged-out page: X serves SSR markup as clean <p> elements. The fixture is the <article> element from the authenticated DOM."
+    "This differs from the logged-out page: X serves SSR markup as clean <p> elements. The fixture is the <article> element from the authenticated DOM.",
+    "Bold section labels are promoted to <h3> by the x.com-specific pass, so \"1.Pre-PR verification:\" and the numbered steps appear in the heading outline instead of only as body text."
   ],
   "expect": {
     "title": "\"How the Claude Code team does code review\"",
@@ -17,14 +18,26 @@
     ],
     "headings": [
       "Rethinking the goal of code review",
+      "Code review serves two purposes:",
       "Human time and attention",
       "What's the journey of a change?",
+      "1.Pre-PR verification:",
+      "2. AI review on every pull request",
+      "3. Security review that can block",
+      "4. Automated checks that block",
+      "5. Human approval, scaled by risk",
+      "6. Merge queue, feature flags and staged rollouts",
+      "7. Fast feedback and rollback",
       "How we make the reviewer better",
       "Humans in the loop",
       "Team context",
       "\"You land it, you own it\"",
       "Changing course",
       "How to implement",
+      "Before the pull request",
+      "On every pull request",
+      "Approval",
+      "Merging and post-merge",
       "Where this is headed"
     ],
     "contains": [

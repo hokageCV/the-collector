@@ -1,0 +1,53 @@
+{
+  "source": "https://x.com/addyosmani/status/2114604912520921136",
+  "problems": [
+    "Counterpart fixture for the authenticated page. Logged out, X returns clean <p>/<b> markup and the extractor never lost text; logged in it nests block-level <div> wrappers that broke links and short paragraphs. Both fixtures must produce the same article.",
+    "The bold section labels (\"1.Pre-PR verification:\", the numbered steps, \"Approval\") are <p><b><strong> paragraphs, not <h*>. Without promotion they export as body text while the real section headings keep their outline."
+  ],
+  "expect": {
+    "title": "How the Claude Code team does code review",
+    "images": [
+      "HVf9yKZbwAAQXG9.jpg",
+      "HVf-M9yawAAIxYF.jpg",
+      "HVf_D--bcAAPXY-.jpg",
+      "HVf_nM4aIAAKyCq.jpg",
+      "HVgAB3aaYAApPEZ.jpg",
+      "HVgAZymawAAx2IG.jpg"
+    ],
+    "headings": [
+      "Rethinking the goal of code review",
+      "Code review serves two purposes:",
+      "Human time and attention",
+      "What's the journey of a change?",
+      "1.Pre-PR verification:",
+      "2. AI review on every pull request",
+      "3. Security review that can block",
+      "4. Automated checks that block",
+      "5. Human approval, scaled by risk",
+      "6. Merge queue, feature flags and staged rollouts",
+      "7. Fast feedback and rollback",
+      "How we make the reviewer better",
+      "Humans in the loop",
+      "Team context",
+      "\"You land it, you own it\"",
+      "Changing course",
+      "How to implement",
+      "Before the pull request",
+      "On every pull request",
+      "Approval",
+      "Merging and post-merge",
+      "Where this is headed"
+    ],
+    "contains": [
+      "1.Pre-PR verification:",
+      "2. AI review on every pull request",
+      "guide to best practices",
+      "Code Review for Claude Code",
+      "30,000",
+      "Each layer catches some bugs while missing others"
+    ],
+    "notContains": [
+      "Bookmark"
+    ]
+  }
+}

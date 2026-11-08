@@ -1,0 +1,37 @@
+{
+  "source": "https://x.com/addyosmani/status/2117512471930167377",
+  "problems": [
+    "Every in-body link whose paragraph contained more than one link vanished, text included: \"called this a calibration exercise\", \"One question from an old blog post of mine\", \"comprehension debt\", \"the bottleneck has shifted from coding to being sure you're right\". X wraps each link in its own block-level <div> inside the paragraph, so one paragraph can have two or more block-level siblings where prose should flow.",
+    "flattenInlineDivs only unwrapped a wrapper when its parent had no other block-level children. With two link wrappers in the same paragraph, each one saw the other as a paragraph boundary, so neither was unwrapped. Readability then split the sentence at the wrappers and _cleanConditionally deleted each link-only fragment for link density 1.0.",
+    "This differs from the logged-out page, where X serves clean <p><a> markup; this fixture is the <article> from the authenticated DOM."
+  ],
+  "expect": {
+    "title": "\"Critical thinking when agents do the work\"",
+    "images": [
+      "HWLT4glawAA6egZ"
+    ],
+    "headings": [
+      "Offloading, deferral and surrender",
+      "The questions I ask myself",
+      "Verification as a habit",
+      "Actually paying attention to what's generated",
+      "Quality in, quality out",
+      "\"But the models will be better at this than me\"",
+      "Practices for the everyday",
+      "What to bring with you"
+    ],
+    "contains": [
+      "Once a week, write a bit of code without an agent, or do one real thing that would suck if you forgot how to do it. (I've called this a calibration exercise, but I don't mean it as a moral one.) Once a month, write down what you've stopped doing and decide which of those you're okay not doing. One question from an old blog post of mine remains as valid as ever: How lost would you be if AI didn't exist?",
+      "I believe that the bottleneck has shifted from coding to being sure you're right.",
+      "This is what Boris Cherny calls \"give Claude a way to verify its work\" and I believe that this is one of the most critical components of achieving great results.",
+      "Margaret-Anne Storey has written about how this shows up in teams as an eroding understanding of a shared system theory.",
+      "comprehension debt (a term coined by Jeremy Twei)",
+      "The Claude Code team has said publicly that they rebuild understanding on demand",
+      "As I've written about before, this sort of debt is more recoverable than most engineers expect."
+    ],
+    "notContains": [
+      "Upgrade to Plus",
+      "View quotes"
+    ]
+  }
+}

@@ -91,6 +91,39 @@ const BLOCK_TAGS =
   'fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,' +
   'li,main,nav,ol,p,pre,section,table,ul,video';
 
+/**
+ * The article container on x.com, or null on every other site.
+ *
+ * This gates the X-specific DOM repairs below. It is keyed on markup rather
+ * than hostname because the DOM is what makes the repairs correct: twitter.com
+ * and the mobile site serve the same shapes. Two shapes exist:
+ *   - logged out: server-rendered [data-article-part="body"]
+ *   - logged in:  Draft.js read view, an <article> holding [data-block] nodes
+ * The read-view test id has changed before, so look for the draft blocks
+ * instead of a specific marker attribute.
+ */
+function xArticleRoot(doc: Document): Element | null {
+  const body = doc.querySelector('[data-article-part="body"]');
+  if (body) return body;
+  for (const article of doc.querySelectorAll('article')) {
+    if (article.querySelector('[data-block="true"]')) return article;
+  }
+  return null;
+}
+
+/**
+ * True when the element carries inline content of its own: a non-whitespace
+ * text node directly under it, or a non-block element child such as <span> or
+ * <a>. Block children are ignored on purpose, so a layout wrapper around
+ * paragraphs does not count as prose.
+ */
+function hasInlineContent(el: Element): boolean {
+  return Array.from(el.childNodes).some((node) => {
+    if (node.nodeType === 3 /* TEXT_NODE */) return (node.textContent ?? '').trim() !== '';
+    return node.nodeType === 1 /* ELEMENT_NODE */ && !(node as Element).matches(BLOCK_TAGS);
+  });
+}
+
 function flattenInlineDivs(doc: Document): void {
   // A <div> inside a block that has no other block-level children cannot act as
   // a paragraph boundary; it is an inline wrapper. x.com renders every link and
@@ -103,11 +136,30 @@ function flattenInlineDivs(doc: Document): void {
   // The parent check is what keeps this safe: unwrapping a paragraph block that
   // sits beside other paragraph blocks would merge them. Reverse order visits
   // children before parents, so nested wrappers collapse in one pass.
+  const xRoot = xArticleRoot(doc);
   const divs = Array.from(doc.querySelectorAll('div')).reverse();
   for (const div of divs) {
     const parent = div.parentElement;
     if (!parent || div.querySelector(BLOCK_TAGS)) continue;
-    if (Array.from(parent.children).some((c) => c !== div && c.matches(BLOCK_TAGS))) continue;
+    const blockSiblings = Array.from(parent.children).filter(
+      (c) => c !== div && c.matches(BLOCK_TAGS),
+    );
+    if (blockSiblings.length > 0) {
+      // X also puts several wrappers side by side: a paragraph with two links
+      // is two block-level sibling <div>s, and the rule above would read them
+      // as paragraph boundaries and leave both links to be deleted. Inside an X
+      // article, a sibling with no block-level descendants of its own is just
+      // another inline wrapper, not a boundary, when the parent also carries
+      // inline content. Gated on the article root because the same shape on a
+      // normal site can be a layout row of columns, where merging would be
+      // wrong.
+      const inlineSiblings =
+        xRoot !== null &&
+        xRoot.contains(div) &&
+        hasInlineContent(parent) &&
+        blockSiblings.every((c) => !c.querySelector(BLOCK_TAGS));
+      if (!inlineSiblings) continue;
+    }
     div.replaceWith(...Array.from(div.childNodes));
   }
 }
@@ -161,26 +213,6 @@ function boldness(el: Element): { total: number; bold: number } {
     node = walker.nextNode();
   }
   return { total, bold };
-}
-
-/**
- * The article container on x.com, or null on every other site.
- *
- * This is the gate for the heading promotion below. It is keyed on markup
- * rather than hostname because the DOM is what makes the promotion correct:
- * twitter.com and the mobile site serve the same shapes. Two shapes exist:
- *   - logged out: server-rendered [data-article-part="body"]
- *   - logged in:  Draft.js read view, an <article> holding [data-block] nodes
- * The read-view test id has changed before, so look for the draft blocks
- * instead of a specific marker attribute.
- */
-function xArticleRoot(doc: Document): Element | null {
-  const body = doc.querySelector('[data-article-part="body"]');
-  if (body) return body;
-  for (const article of doc.querySelectorAll('article')) {
-    if (article.querySelector('[data-block="true"]')) return article;
-  }
-  return null;
 }
 
 /**

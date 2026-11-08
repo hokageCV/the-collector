@@ -1,0 +1,33 @@
+{
+  "source": "https://x.com/addyosmani/status/2117512471930167377",
+  "problems": [
+    "Counterpart fixture for the authenticated page. Logged out, X returns clean <p><a> markup and links survive; logged in, each link sits in its own block-level <div> and paragraphs with two or more links lost every link. Both fixtures must produce the same article text and headings.",
+    "Pins the target output for the multi-link paragraph: link text stays inline in the surrounding sentence rather than being split into deleted fragments."
+  ],
+  "expect": {
+    "title": "Critical thinking when agents do the work",
+    "images": [
+      "HWLT4glawAA6egZ.png"
+    ],
+    "headings": [
+      "Offloading, deferral and surrender",
+      "The questions I ask myself",
+      "Verification as a habit",
+      "Actually paying attention to what's generated",
+      "Quality in, quality out",
+      "\"But the models will be better at this than me\"",
+      "Practices for the everyday",
+      "What to bring with you"
+    ],
+    "contains": [
+      "Once a week, write a bit of code without an agent, or do one real thing that would suck if you forgot how to do it. (I've called this a calibration exercise, but I don't mean it as a moral one.) Once a month, write down what you've stopped doing and decide which of those you're okay not doing. One question from an old blog post of mine remains as valid as ever: How lost would you be if AI didn't exist?",
+      "I believe that the bottleneck has shifted from coding to being sure you're right.",
+      "This is what Boris Cherny calls \"give Claude a way to verify its work\" and I believe that this is one of the most critical components of achieving great results.",
+      "Margaret-Anne Storey has written about how this shows up in teams as an eroding understanding of a shared system theory.",
+      "comprehension debt (a term coined by Jeremy Twei)",
+      "The Claude Code team has said publicly that they rebuild understanding on demand",
+      "As I've written about before, this sort of debt is more recoverable than most engineers expect."
+    ],
+    "notContains": []
+  }
+}

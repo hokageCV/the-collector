@@ -27,6 +27,15 @@ EBOOK_CONVERT_FALLBACKS = [
 
 CONVERT_TIMEOUT_S = 300
 
+# Calibre's default chapter detection is keyword-based ("Chapter", "Part", ...)
+# and otherwise falls back to harvesting local links, which produces a flat TOC
+# of every heading permalink. The export wraps each article in <section> with an
+# <h1> title, so map heading levels explicitly: article title, then h2 sections,
+# then h3-h6 subsections. Kindle renders the result as collapsible chapters.
+TOC_LEVEL1 = "//h:section/h:h1"
+TOC_LEVEL2 = "//h:section//h:h2"
+TOC_LEVEL3 = "//h:section//*[name()='h3' or name()='h4' or name()='h5' or name()='h6']"
+
 
 def log(msg: str) -> None:
     print(f"[the-collector-host] {msg}", file=sys.stderr, flush=True)
@@ -142,6 +151,12 @@ def handle_convert(zip_path_raw: object) -> dict:
             f"My Reading List {title_stamp}",
             "--authors",
             "Various",
+            "--level1-toc",
+            TOC_LEVEL1,
+            "--level2-toc",
+            TOC_LEVEL2,
+            "--level3-toc",
+            TOC_LEVEL3,
         ]
         log(f"running: {' '.join(cmd)}")
         try:

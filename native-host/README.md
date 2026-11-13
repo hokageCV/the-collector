@@ -48,6 +48,16 @@ Failure:
 {"success": false, "error": "human-readable reason"}
 ```
 
+## Table of contents
+
+Calibre's default chapter detection is keyword-based and falls back to
+harvesting local links. Exported articles have no keyword chapters, and many
+blogs wrap headings in permalinks, so that fallback makes every heading a flat
+top-level entry. The host passes explicit `--level1-toc` / `--level2-toc` /
+`--level3-toc` XPaths instead: each article's `<section> > h1` is level one,
+`h2` is level two, and `h3`-`h6` are level three. Kindle renders that hierarchy
+as collapsible chapters.
+
 ## Manual test (no Chrome)
 
 ```bash

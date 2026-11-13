@@ -83,6 +83,37 @@ function stripHeadingClasses(doc: Document): void {
     .forEach((h) => h.removeAttribute('class'));
 }
 
+// Readability's unlikely-candidate regex matches <aside>, and it deletes the
+// element before scoring. On article pages an <aside> is often a callout or a
+// tangent that belongs to the article, not site chrome, so its prose is lost.
+// Only recover asides that are inside the article container, carry substantial
+// text, and are not mostly links. A related-posts or ad aside has high link
+// density and is left for Readability to drop.
+// Long enough to be a callout or tangent, short enough that share/promo
+// asides stay below it unless they are mostly link text.
+const MIN_ASIDE_TEXT_CHARS = 200;
+// Related-posts asides are almost all link text; article asides have prose
+// around their links. Half the text being link text is the dividing line.
+const MAX_ASIDE_LINK_DENSITY = 0.5;
+
+function unwrapArticleAsides(doc: Document): void {
+  const containers = Array.from(
+    doc.querySelectorAll('article, main, [role="main"]'),
+  );
+  if (containers.length === 0) return;
+  for (const aside of Array.from(doc.querySelectorAll('aside'))) {
+    if (!containers.some((container) => container.contains(aside))) continue;
+    const text = (aside.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (text.length < MIN_ASIDE_TEXT_CHARS) continue;
+    let linkChars = 0;
+    aside.querySelectorAll('a').forEach((a) => {
+      linkChars += (a.textContent ?? '').replace(/\s+/g, ' ').trim().length;
+    });
+    if (linkChars / text.length > MAX_ASIDE_LINK_DENSITY) continue;
+    aside.replaceWith(...Array.from(aside.childNodes));
+  }
+}
+
 // Block-level tags, used to tell a paragraph boundary from an inline wrapper.
 // Phrasing content (span, a, b, code, img, …) is absent on purpose: the only
 // question here is whether removing a <div> would merge two paragraphs.
@@ -397,6 +428,7 @@ function extract(screenshots: Record<string, string> = {}): ExtractResponse {
   normalizeImages(cloned);
   flattenCaptionLinks(cloned);
   stripHeadingClasses(cloned);
+  unwrapArticleAsides(cloned);
   flattenInlineDivs(cloned);
   promoteXArticleHeadings(cloned);
   flattenMath(cloned);

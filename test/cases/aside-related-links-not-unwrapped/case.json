@@ -1,0 +1,23 @@
+{
+  "source": "https://example.com/deploying-the-service",
+  "problems": [
+    "Synthetic guard for the aside unwrapping. A related-posts aside lives inside <article> and carries more than the minimum text, but almost all of it is link text. It must not be unwrapped into the body; Readability should still drop it.",
+    "The main article prose on both sides of the aside must survive, proving the density gate did not take the surrounding paragraphs with it."
+  ],
+  "expect": {
+    "title": "Deploying the service",
+    "images": [],
+    "headings": [],
+    "contains": [
+      "We deploy the service several times a day",
+      "The canary stage watches error rates",
+      "After the canary passes, the deploy moves to the full fleet in batches",
+      "Rollbacks are boring on purpose"
+    ],
+    "notContains": [
+      "How we scaled to a million users",
+      "Related posts",
+      "What our on-call rotation taught us"
+    ]
+  }
+}

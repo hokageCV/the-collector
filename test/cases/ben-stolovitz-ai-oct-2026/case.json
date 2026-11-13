@@ -1,0 +1,65 @@
+{
+  "source": "https://ben.stolovitz.com/posts/how-use-ai-oct-2026/",
+  "problems": [
+    "The whole \"Sonnet 4.6 & Opus 4.8 are pretty good\" section was missing from the export: the h3 and its three paragraphs sit inside an <aside> that Readability deletes as an unlikely candidate before scoring. Unwrapping substantial prose asides inside the article restores it.",
+    "This article also reproduced the flat Kindle TOC: its <h2> headings wrap permalinks (<h2><a href=\"#background\">Background</a></h2>). Calibre detected no keyword chapters and fell back to a link-based TOC, so every heading became a top-level entry. The native host now passes explicit level XPaths; this fixture pins the extracted source, not the conversion.",
+    "The <h2> without a permalink (\"Want next year's article?\") is included to prove the fixture has both heading shapes."
+  ],
+  "expect": {
+    "title": "How I use AI (Oct 2026)",
+    "images": [
+      "cover-dark.DYeplbFh_1x6zaR.png",
+      "cover.BreLtJvs_Z14Eekw.png",
+      "brainpop.DpRD3oS0_1VuPIN.webp",
+      "autocomplete-still-good.DvG72xfj_Z2tPw8d.webp",
+      "busy-claude-code.BUuJVInW_Z22QHCN.webp",
+      "ai-code-review.BfFwS0z-_T6IYJ.webp",
+      "sketchy-emoji-site.CHZP5v75_Z28Gakp.png",
+      "emoji-sigh.OKxoc5_7_IT191.png",
+      "chatgpt-ads.DNDwADsK_Zjr5qL.webp",
+      "mallow.D3JBb7wG_Z2cajir.webp",
+      "emt-training.Dby64In-_ZesDVc.webp",
+      "claude-literature-review.Bie6isz8_ZXsIvh.webp",
+      "handy.CKtzVAfG_1UfIjn.webp",
+      "pseudo-profound-dark.aDEDd9H__ZSS5hN.png",
+      "pseudo-profound.DBj_3MrV_Lm8nR.png",
+      "buttono-supremo.BrtJjRbz_1VJjep.webp",
+      "JH-ty2cs-doompop.VI6QqqkM_jh5Aq.webp",
+      "youtube-slop.BrwQCbYd_Z1dJBtz.webp"
+    ],
+    "headings": [
+      "Background",
+      "My AI policy",
+      "Coding",
+      "Sonnet 4.6 &amp; Opus 4.8 are pretty good",
+      "Research &amp; search",
+      "Summarization &amp; transcription &amp; voice",
+      "Writing",
+      "Art &amp; music &amp; video",
+      "Conclusion",
+      "Want next year's article? (and others in between)",
+      "Appendix: my subscriptions"
+    ],
+    "contains": [
+      "Sonnet 4.6 & Opus 4.8 are pretty good",
+      "I spent this year marching with recent models",
+      "Sonnet-4.6– and Opus-4.8–level intelligence is sufficient for effective agentic coding.",
+      "Open-source models already outperform those.",
+      "Background",
+      "My AI policy",
+      "Coding",
+      "Research & search",
+      "Summarization & transcription & voice",
+      "Writing",
+      "Art & music & video",
+      "Conclusion",
+      "Want next year's article? (and others in between)",
+      "Appendix: my subscriptions"
+    ],
+    "notContains": [
+      "← back home",
+      "Subscribe",
+      "Ben Stolovitz"
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Deploying the service</title></head><body>
+<article>
+<h1>Deploying the service</h1>
+<p>We deploy the service several times a day, and every deploy goes through the same pipeline: build, test, stage, canary, then full rollout. The goal is to make the safe path the easy path so nobody is tempted to skip a step when they are in a hurry.</p>
+<p>The canary stage watches error rates, latency, and a few business metrics for ten minutes. If any of them drift outside the expected range, the deploy is rolled back automatically and the on-call engineer gets a page with the comparison.</p>
+<aside>
+<h2>Related posts</h2>
+<ul>
+<li><a href="/posts/scaling">How we scaled to a million users without rewriting the backend</a></li>
+<li><a href="/posts/caching">A caching layer that paid for itself in a single quarter</a></li>
+<li><a href="/posts/oncall">What our on-call rotation taught us about reliability</a></li>
+<li><a href="/posts/postmortems">Writing postmortems that people actually read and remember</a></li>
+<li><a href="/posts/incidents">Five incidents that changed how we design systems</a></li>
+<li><a href="/posts/observability">Observability is not just dashboards and alerts</a></li>
+</ul>
+</aside>
+<p>After the canary passes, the deploy moves to the full fleet in batches. Each batch waits for the previous one to report healthy, so a bad build never reaches every user at once. The release notes are generated from the commit log and linked from the deploy page.</p>
+<p>Rollbacks are boring on purpose. The previous build is still available, the database migrations are backward compatible for at least one release, and the feature flags let us turn off a new path without shipping code. That combination is what makes deploying on a Friday afternoon uneventful.</p>
+</article>
+</body></html>

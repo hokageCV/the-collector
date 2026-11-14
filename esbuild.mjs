@@ -22,6 +22,9 @@ const staticAssets = [
   'src/popup/popup.html',
   'src/options/options.html',
   'src/styles/theme.css',
+  // Bundled so emoji rasterization does not depend on the host's fonts.
+  'src/fonts/NotoEmoji-Regular.ttf',
+  'src/fonts/OFL.txt',
 ];
 
 async function copyStatic() {

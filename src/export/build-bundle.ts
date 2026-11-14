@@ -1,6 +1,8 @@
 import { zipSync } from 'fflate';
 import { listArticles, getImagesForArticle } from '../db/db';
 import themeCss from '../styles/theme.css';
+import { replaceEmojiWithImages, containsEmoji } from './emoji';
+import { createEmojiRenderer } from './emoji-render';
 
 const MIME_EXT: Record<string, string> = {
   'image/png': 'png',
@@ -66,7 +68,11 @@ export async function getDownloadPath(id: number): Promise<string> {
   return item.filename;
 }
 
-/** Builds the export ZIP in memory. Runs in page or worker contexts. */
+/**
+ * Builds the export ZIP in memory. Runs in an extension page (popup/options):
+ * emoji rasterization needs DOMParser and canvas, which a service worker has
+ * no access to.
+ */
 export async function buildZipBlob(): Promise<Blob> {
   const articles = await listArticles();
   if (articles.length === 0) throw new Error('No articles to export');
@@ -84,7 +90,7 @@ export async function buildZipBlob(): Promise<Blob> {
     })
     .join('\n');
 
-  const doc = `<!doctype html>
+  let doc = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -155,6 +161,15 @@ ${themeCss}
   a { color: var(--color-c-accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
   img { max-width: 100%; height: auto; border-radius: 10px; }
+  /* Emoji are inlined as PNGs (see src/export/emoji.ts) because Kindle fonts
+     have no emoji glyphs. 1em keeps the image inside the line box, so lines
+     that contain emoji do not gain extra leading. */
+  img.emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: -0.15em;
+    border-radius: 0;
+  }
   blockquote {
     margin: 1.4em 0;
     padding: 0.2em 0 0.2em 1.2em;
@@ -198,9 +213,7 @@ ${sections}
 </body>
 </html>`;
 
-  const files: Record<string, Uint8Array> = {
-    'combined.html': new TextEncoder().encode(doc),
-  };
+  const files: Record<string, Uint8Array> = {};
 
   for (const a of articles) {
     const imgs = await getImagesForArticle(a.id);
@@ -209,6 +222,24 @@ ${sections}
       files[path] = new Uint8Array(await img.blob.arrayBuffer());
     }
   }
+
+  // Emoji are rasterized here rather than at save time so the stored article
+  // stays untouched (the in-extension reader renders emoji natively), and so
+  // one pass also covers titles and any article saved before this existed.
+  // The pre-check keeps emoji-free exports byte-identical and skips the font.
+  if (containsEmoji(doc)) {
+    const renderEmoji = await createEmojiRenderer();
+    if (renderEmoji) {
+      const parsed = new DOMParser().parseFromString(doc, 'text/html');
+      const { assets, replaced } = await replaceEmojiWithImages(parsed.body, renderEmoji);
+      if (replaced > 0) {
+        doc = `<!doctype html>\n${parsed.documentElement.outerHTML}`;
+        for (const [name, bytes] of assets) files[`emoji/${name}`] = bytes;
+      }
+    }
+  }
+
+  files['combined.html'] = new TextEncoder().encode(doc);
 
   const zipped = zipSync(files, { level: 6 });
   return new Blob([zipped], { type: 'application/zip' });

@@ -64,6 +64,20 @@ unzip the-collector-export.zip -d export/ && cd export/ \
 ```
 
 
+## Emoji
+
+Kindle firmware fonts (Bookerly, Amazon Ember) have no emoji glyphs, so emoji
+straight from the page render as empty boxes on the device. During export each
+emoji is rasterized to a monochrome PNG with a bundled Noto Emoji font and
+inserted as an inline `<img>` (`height: 1em`), so it flows with the sentence
+instead of breaking the line. Images are deduplicated per distinct emoji and
+live in `emoji/` inside the ZIP.
+
+The pass runs at export time, not at save time: stored HTML stays untouched for
+the in-extension reader, and already-saved articles are fixed on the next
+export. Emoji inside `pre`/`code` are left alone, and any emoji the renderer
+cannot draw stays as text rather than becoming a blank image.
+
 ## Troubleshooting conversion
 
 | Symptom | Likely cause | Fix |

@@ -3,6 +3,7 @@ import { listArticles, getImagesForArticle } from '../db/db';
 import themeCss from '../styles/theme.css';
 import { replaceEmojiWithImages, containsEmoji } from './emoji';
 import { createEmojiRenderer } from './emoji-render';
+import { articleSectionHtml, escapeHtml } from './article-section';
 
 const MIME_EXT: Record<string, string> = {
   'image/png': 'png',
@@ -16,18 +17,6 @@ const MIME_EXT: Record<string, string> = {
 
 function extForMime(mime: string): string {
   return MIME_EXT[mime] ?? 'img';
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => {
-    switch (c) {
-      case '&': return '&amp;';
-      case '<': return '&lt;';
-      case '>': return '&gt;';
-      case '"': return '&quot;';
-      default: return '&#39;';
-    }
-  });
 }
 
 function formatDate(ts: number): string {
@@ -82,12 +71,15 @@ export async function buildZipBlob(): Promise<Blob> {
     .join('\n');
 
   const sections = articles
-    .map((a) => {
-      const meta = `<p class="meta">Source: <a href="${escapeHtml(
-        a.url,
-      )}">${escapeHtml(a.url)}</a> — saved ${formatDate(a.saved_at)}</p>`;
-      return `<section id="${a.slug}">\n<p class="article-boundary article-start"><strong>========== ARTICLE START ==========</strong></p>\n<h1>${escapeHtml(a.title)}</h1>\n${meta}\n${a.html}\n<p class="article-boundary article-end"><strong>=========== ARTICLE END ===========</strong></p>\n</section>`;
-    })
+    .map((a) =>
+      articleSectionHtml({
+        slug: a.slug,
+        title: a.title,
+        url: a.url,
+        html: a.html,
+        savedLabel: formatDate(a.saved_at),
+      }),
+    )
     .join('\n');
 
   let doc = `<!doctype html>

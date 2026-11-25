@@ -52,6 +52,12 @@ Exporting from the popup is safe: the download starts in the popup but the
 conversion and cleanup run in the background service worker, so closing the
 popup mid-export doesn't interrupt anything.
 
+Each article is its own Kindle chapter. The section is a page break and the
+`<h1>` is the first node on that page, with nothing above it — Kindle assigns a
+page to the previous chapter when text precedes the new chapter's heading, and
+reports that page as "Chapter complete". Keeping the heading first is what makes
+chapter progress advance into the next article.
+
 Manual fallback (no native host):
 
 ```bash
